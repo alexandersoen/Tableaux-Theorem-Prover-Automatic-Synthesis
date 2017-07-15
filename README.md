@@ -1,0 +1,1 @@
+# Tableaux-Theorem-Prover-Automatic-Synthesis
