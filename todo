@@ -1,0 +1,23 @@
+ - encode the tableaux calculus for classical propositional logic into
+   Coq;
+
+ - encode the truth table semantcs of classical propositional logic
+   into Coq;
+
+ - encode an effective procedure for searching for tableaux calculus
+   proofs inside Coq;
+
+ - prove the following theorems:
+
+    Thm 1: if the formula A has a tableaux proof then it is valid.
+
+    Thm 1: if the formula A is valid then it has a tableaux calculus
+    proof.
+
+ - now extract the code that does proof search from Coq to obtain an
+   automatically generated theorem prover for classical propositional
+   logic
+
+ - if, as I suspect, you knock this off easily, then we move to move
+   complicated logics until you are happy.
+
