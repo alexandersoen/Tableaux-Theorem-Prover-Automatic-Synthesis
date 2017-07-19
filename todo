@@ -1,8 +1,24 @@
+TODO:
  - encode the tableaux calculus for classical propositional logic into
    Coq;
+    - Plan?
+       - Implicit ltree (use sets) as the tableaux tree
+       - Single set of props represent a "stage" (node) in the tableaux
+         expansion
+       - Rule turns a stage into a list of stages (node to branches)
+         (Might need to change for DFS)
+
+    - Might need some "ordering function" for expressions in CPL
+    - Need to implement:
+       * Subset function?
+       * Expansion rule
+         (How do I turn schema into an actual function?)
+       * Node?
 
  - encode the truth table semantcs of classical propositional logic
    into Coq;
+    - Using paper "Propositional Calculus in Coq"
+    - Evaluation is done through property of Valid
 
  - encode an effective procedure for searching for tableaux calculus
    proofs inside Coq;
@@ -11,7 +27,7 @@
 
     Thm 1: if the formula A has a tableaux proof then it is valid.
 
-    Thm 1: if the formula A is valid then it has a tableaux calculus
+    Thm 2: if the formula A is valid then it has a tableaux calculus
     proof.
 
  - now extract the code that does proof search from Coq to obtain an
