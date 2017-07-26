@@ -4,7 +4,32 @@ Set Implicit Arguments.
 Module Type tableau_calculus_mod (X : base_mod).
 Import X.
 
+(*
+Inductive Tableau : Type :=
+| T : list PropF -> Tableau.
+*)
+
 Definition Tableau := list PropF.
+
+Inductive ClosedT_P : Tableau -> Prop :=
+| TId   : forall T A      , In A T                         -> In (¬A) T                -> ClosedT_P T
+| TBot  : forall T        , In ⊥ T                                                     -> ClosedT_P T
+| TAndL : forall T1 T2 A B, ClosedT_P (T1++A::B::T2)                                   -> ClosedT_P (T1++A∧B::T2)
+| TAndR : forall T1 T2 A B, ClosedT_P (T1++(¬A)::T2)       -> ClosedT_P (T1++(¬B)::T2) -> ClosedT_P (T1++(¬(A∧B))::T2)
+| TOrL  : forall T1 T2 A B, ClosedT_P (T1++A::T2)          -> ClosedT_P (T1++B::T2)    -> ClosedT_P (T1++A∨B::T2)
+| TOrR  : forall T1 T2 A B, ClosedT_P (T1++(¬A)::(¬B)::T2)                             -> ClosedT_P (T1++(¬(A∨B))::T2)
+| TImpL : forall T1 T2 A B, ClosedT_P (T1++B::T2)          -> ClosedT_P (T1++(¬A)::T2) -> ClosedT_P (T1++A→B::T2)
+| TImpR : forall T1 T2 A B, ClosedT_P (T1++A::(¬B)::T2)                                -> ClosedT_P (T1++(¬(A→B))::T2)
+.
+
+
+
+
+
+
+
+
+(*
 
 Inductive Result :=
   | closed : Result
@@ -131,5 +156,7 @@ Fixpoint isClosed (T : Tableau) : Result :=
   match Absurdity T with
   | True => closed
   end.
+
+*)
 
 End tableau_calculus_mod.
