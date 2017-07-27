@@ -1,4 +1,4 @@
-Require Export a_base Omega.
+Require Export a_base.
 Set Implicit Arguments.
 
 Module Type tableau_calculus_mod (X : base_mod).
@@ -12,6 +12,7 @@ Inductive Tableau : Type :=
 Definition Tableau := list PropF.
 
 Inductive ClosedT_P : Tableau -> Prop :=
+| Triv  : ClosedT_P nil
 | TId   : forall T A      , In A T                         -> In (¬A) T                -> ClosedT_P T
 | TBot  : forall T        , In ⊥ T                                                     -> ClosedT_P T
 | TAndL : forall T1 T2 A B, ClosedT_P (T1++A::B::T2)                                   -> ClosedT_P (T1++A∧B::T2)
@@ -21,13 +22,6 @@ Inductive ClosedT_P : Tableau -> Prop :=
 | TImpL : forall T1 T2 A B, ClosedT_P (T1++B::T2)          -> ClosedT_P (T1++(¬A)::T2) -> ClosedT_P (T1++A→B::T2)
 | TImpR : forall T1 T2 A B, ClosedT_P (T1++A::(¬B)::T2)                                -> ClosedT_P (T1++(¬(A→B))::T2)
 .
-
-
-
-
-
-
-
 
 (*
 

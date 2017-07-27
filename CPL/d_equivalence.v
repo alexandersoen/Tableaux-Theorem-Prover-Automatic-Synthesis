@@ -66,7 +66,7 @@ Proof.
         destruct H5; auto; destruct H5; auto; destruct H5; auto; destruct H5; auto.
 Qed.
 
-Lemma SetPropEq_sym : forall Γ Δ, SetPropEq Γ Δ -> SetPropEq Δ Γ.
+Lemma SetPropEq_comm : forall Γ Δ, SetPropEq Γ Δ -> SetPropEq Δ Γ.
 Proof.
   intros.
   unfold SetPropEq in *. intros. pose (H' := H A). apply iff_sym. assumption.
@@ -76,6 +76,27 @@ Lemma SetPropEq_rewriteIn : forall A Γ Δ, In A Γ -> SetPropEq Γ Δ -> In A �
 Proof.
   intros. unfold SetPropEq in H0. pose (H0' := H0 A).
   unfold iff in H0'. destruct H0'. refine (H1 _). assumption.
+Qed.
+
+Lemma SetPropEq_trans : forall Γ Δ Σ,
+  SetPropEq Γ Δ -> SetPropEq Δ Σ -> SetPropEq Γ Σ.
+Proof.
+  intros; unfold SetPropEq in *; unfold iff in *.
+  intros; destruct (H A), (H0 A).
+  split; auto; auto.
+Qed.
+
+Hint Resolve SetPropEq_trans SetPropEq_comm.
+
+Lemma SetPropEq_app : forall Γ Δ, SetPropEq (Γ ++ Δ) (Δ ++ Γ).
+Proof.
+  intros; unfold SetPropEq; intros; unfold iff; split.
+    intros.
+      apply in_app_or in H; apply or_comm in H;
+      apply in_or_app in H; assumption.
+    intros.
+      apply in_app_or in H; apply or_comm in H;
+      apply in_or_app in H; assumption.
 Qed.
 
 Theorem sequent_equiv_tableau_P : forall T,
@@ -90,14 +111,13 @@ Proof.
       intros.
         destruct H0.
           contradict H; trivial.
-          pose proof inListExists2 A (¬A) T0 H0 H1 as thm.
-          destruct thm.
-          destruct H0.
-          
-          pose proof SetPropEq_rewriteIn as theorem.
-          pose (theorem (¬A) T0 (A::x) H1 H0) as test.
-          apply inListExists in test. destruct test.
-          
+          pose proof inListExists2 (¬A) A T0 H1 H0 as thm.
+          destruct thm. refine (ex_intro _ (A::x) _).
+          refine (ex_intro _ (A::nil) _). split.
+            unfold SetNegate; simpl.
+            pose (H3 := SetPropEq_app (A::x) (¬A::nil)).
+            simpl in *. exact (SetPropEq_trans H2 (SetPropEq_comm H3)).
+            exact (SId A (A::x) (A::nil) (in_eq A x) (in_eq A nil)).
 Admitted.
 
 End equivalence_mod.
