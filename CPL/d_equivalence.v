@@ -114,7 +114,26 @@ Theorem tableau_to_sequent_P : forall T,
   IsClosed T -> 
   (exists Γ Δ, (SetPropEq T (SetNegate Δ ++ Γ)) /\ (DerSeq_P (Γ ⇒ Δ))).
 Proof.
-  intros. unfold IsClosed in H. destruct H as [Tableau H].
+  intros. induction H.
+    destruct H.
+    pose proof (inListExists2 A (¬A) X) as setEq.
+    pose (setEq' := setEq H H1); destruct setEq'.
+    refine (ex_intro _ (A::x) _); refine (ex_intro _ (A::nil) _);
+    split.
+      unfold SetNegate; simpl.
+      apply SetPropEq_cons in H2. assumption.
+      refine ((SId A (A::x) (A::nil)) _ _). simpl; auto. simpl; auto.
+
+    pose proof (inListExists1 ⊥ X) as setEq.
+    pose (setEq' := setEq H); destruct setEq'.
+    refine (ex_intro _ (⊥ :: x) _); refine (ex_intro _ nil _).
+    unfold SetNegate; simpl; split.
+    assumption. refine ((SBotL (⊥ :: x) nil) _). simpl; auto.
+Qed.
+
+(*
+  intros.
+   unfold IsClosed in H. destruct H as [Tableau H].
     destruct H. destruct H.
       pose proof (inListExists2 x (¬x) T) as setEq.
       destruct H.
@@ -130,17 +149,21 @@ Proof.
       refine (ex_intro _ (⊥ :: x) _); refine (ex_intro _ nil _).
       unfold SetNegate; simpl; split.
       assumption. refine ((SBotL (⊥ :: x) nil) _). simpl; auto.
-Qed.
+Qed. *)
 
 Theorem sequent_to_tableau_P : forall T,
   (exists Γ Δ, (SetPropEq T (SetNegate Δ ++ Γ)) /\ (DerSeq_P (Γ ⇒ Δ)))
   -> IsClosed T.
 Proof.
-  intros; repeat destruct H.
-  induction H0.
+  intros. repeat destruct H.
+  induction 
+
+  inversion H0.
     apply inListExists1 in H0;
     apply inListExists1 in H1;
     destruct H0, H1.
+      unfold IsClosed; split.
+        
 Admitted.
 
 End equivalence_mod.
