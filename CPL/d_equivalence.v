@@ -110,60 +110,99 @@ Proof.
     destruct H2; auto; destruct H2; auto; auto.
 Qed.
 
-Theorem tableau_to_sequent_P : forall T,
-  IsClosed T -> 
-  (exists Γ Δ, (SetPropEq T (SetNegate Δ ++ Γ)) /\ (DerSeq_P (Γ ⇒ Δ))).
+Lemma SetPropEq_refl : forall Γ, SetPropEq Γ Γ.
 Proof.
-  intros. induction H.
-    destruct H.
-    pose proof (inListExists2 A (¬A) X) as setEq.
-    pose (setEq' := setEq H H1); destruct setEq'.
-    refine (ex_intro _ (A::x) _); refine (ex_intro _ (A::nil) _);
-    split.
-      unfold SetNegate; simpl.
-      apply SetPropEq_cons in H2. assumption.
-      refine ((SId A (A::x) (A::nil)) _ _). simpl; auto. simpl; auto.
-
-    pose proof (inListExists1 ⊥ X) as setEq.
-    pose (setEq' := setEq H); destruct setEq'.
-    refine (ex_intro _ (⊥ :: x) _); refine (ex_intro _ nil _).
-    unfold SetNegate; simpl; split.
-    assumption. refine ((SBotL (⊥ :: x) nil) _). simpl; auto.
+  intros; induction Γ.
+    unfold SetPropEq; unfold iff; intros; auto.
+    unfold SetPropEq; unfold iff; intros; auto.
 Qed.
 
-(*
-  intros.
-   unfold IsClosed in H. destruct H as [Tableau H].
-    destruct H. destruct H.
-      pose proof (inListExists2 x (¬x) T) as setEq.
-      destruct H.
-      pose (setEq' := setEq H H0); destruct setEq'.
-      refine (ex_intro _ (x::x0) _); refine (ex_intro _ (x::nil) _);
-      split.
-      unfold SetNegate; simpl.
-      apply SetPropEq_cons in H1; assumption.
-      refine ((SId x (x::x0) (x::nil)) _ _); simpl; auto; simpl; auto.
-
-      pose proof (inListExists1 ⊥ T) as setEq.
-      pose (setEq' := setEq H); destruct setEq'.
-      refine (ex_intro _ (⊥ :: x) _); refine (ex_intro _ nil _).
-      unfold SetNegate; simpl; split.
-      assumption. refine ((SBotL (⊥ :: x) nil) _). simpl; auto.
-Qed. *)
-
-Theorem sequent_to_tableau_P : forall T,
-  (exists Γ Δ, (SetPropEq T (SetNegate Δ ++ Γ)) /\ (DerSeq_P (Γ ⇒ Δ)))
-  -> IsClosed T.
+Lemma in_app_comm :
+  forall (A : PropF) Γ Δ, In A (Γ ++ Δ) -> In A (Δ ++ Γ).
 Proof.
-  intros. repeat destruct H.
-  induction 
+  intros.
+  apply in_app_iff; apply or_comm; apply in_app_iff; assumption.
+Qed.
 
-  inversion H0.
-    apply inListExists1 in H0;
-    apply inListExists1 in H1;
-    destruct H0, H1.
-      unfold IsClosed; split.
-        
-Admitted.
-
+Theorem tableau_to_sequent_P : forall L (T : Tableau L),
+  ClosedT_P T -> 
+  (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
+Proof.
+  intros. destruct H. induction T.
+    refine (ex_intro _ (Γ1 ++ A :: B :: Γ2) _).
+    refine (ex_intro _ nil _). unfold SetNegate; simpl. split.
+    pose proof (app_nil_r (Γ1 ++ A :: B :: Γ2)) as SL; rewrite SL.
+    exact (SetPropEq_refl (Γ1 ++ A :: B :: Γ2)).
+    constructor; assumption.
+    
+    refine (ex_intro _ (Γ1 ++ A :: Γ2) _).
+    refine (ex_intro _ nil _). unfold SetNegate; simpl. split.
+    pose proof (app_nil_r (Γ1 ++ A :: Γ2)) as SL; rewrite SL.
+    exact (SetPropEq_refl (Γ1 ++ A :: Γ2)).
+    constructor; assumption.
+    
+    refine (ex_intro _ (Γ1 ++ B :: Γ2) _).
+    refine (ex_intro _ nil _). unfold SetNegate; simpl. split.
+    pose proof (app_nil_r (Γ1 ++ B :: Γ2)) as SL; rewrite SL.
+    exact (SetPropEq_refl (Γ1 ++ B :: Γ2)).
+    constructor; assumption.
+    
+    refine (ex_intro _ (Γ1 ++ Γ2) _).
+    refine (ex_intro _ (A::nil) _). unfold SetNegate; simpl. split.
+    unfold SetPropEq. intros.
+     unfold iff; intros; simpl in *; split.
+      intros. refine ((in_or_app (Γ1++Γ2) (¬A::nil) A0) _).
+      apply (in_app_or _ _ _) in H0. simpl in *.
+      pose proof (in_app_iff Γ1 Γ2 A0) as HIn; rewrite HIn.
+      apply (or_assoc _ _ _).
+      pose proof (or_assoc (In A0 Γ2) (¬A=A0) False) as RW1;
+      rewrite <- RW1.
+      pose proof (or_comm (In A0 Γ2) (¬A=A0)) as Hcomm. rewrite Hcomm.
+      apply (or_assoc _ _). refine (or_introl _). assumption.
+      intros. apply (in_or_app _). apply (in_app_or _) in H0.
+      pose proof (in_app_iff Γ1 Γ2 A0) as Happ.
+      rewrite Happ in H0. simpl in *. apply (or_assoc _).
+      apply (or_comm _). apply (or_assoc _).
+      apply (or_assoc _) in H0. destruct H0.
+      pose proof (or_comm (In A0 Γ2) (In A0 Γ1)) as Hcomm.
+      rewrite Hcomm; assumption. contradict H0.
+    constructor. apply (in_app_iff _) in H. apply (or_comm _) in H.
+    apply (in_app_iff _) in H. simpl in H. destruct H.
+    discriminate H. apply (in_app_iff _); apply (or_comm _);
+    apply (in_app_iff); assumption.
+    
+    refine (ex_intro _ (Γ1 ++ B :: Γ2) _).
+    refine (ex_intro _ (nil) _). unfold SetNegate; simpl. split.
+    unfold SetPropEq. intros.
+    unfold iff; intros; simpl in *; split.
+      intros. refine ((in_or_app (Γ1++B::Γ2) (nil) A0) _).
+      apply (in_app_or _ _ _) in H0. simpl in *.
+      pose proof (in_app_iff Γ1 (B::Γ2) A0) as HIn; rewrite HIn.
+      apply (or_assoc _ _ _). simpl.
+      apply (or_assoc _). refine (or_introl _). assumption.
+      intros.  pose (app_nil_r (Γ1 ++ B :: Γ2)) as Hsimp.
+      rewrite Hsimp in H0; assumption.
+    constructor. assumption.
+    
+    refine (ex_intro _ (Γ1++Γ2) _).
+    refine (ex_intro _ (A::nil) _).
+    unfold SetPropEq. intros.
+    unfold iff; intros; simpl in *; split.
+        intros. split.
+          intros. unfold SetNegate; simpl.
+          apply (in_app_iff _) in H0; apply (or_comm _) in H0;
+          apply (in_app_iff _) in H0.
+          apply (in_app_iff _); apply (or_comm); apply (in_app_iff _).
+          simpl. simpl in H0. destruct H0. refine (or_introl _);
+          assumption. refine (or_intror _).
+          apply in_app_iff; apply or_comm; apply in_app_iff;
+          assumption.
+          intros. unfold SetNegate in H0; simpl in H0.
+          apply in_app_comm in H0. simpl in H0.
+          apply in_app_comm; simpl. destruct H0.
+          refine (or_introl _); assumption.
+          refine (or_intror _); apply in_app_comm; assumption.
+    constructor. apply in_app_comm in H. simpl in H.
+    destruct H. discriminate H. apply in_app_comm; assumption.
+    
 End equivalence_mod.
