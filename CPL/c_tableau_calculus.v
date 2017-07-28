@@ -10,9 +10,13 @@ Inductive Tableau : list PropF -> Prop :=
 | TOrR : forall X A B, Tableau (A∨B::X) -> Tableau (B::X)
 | TImpL : forall X A B, Tableau (A→B::X) -> Tableau (¬A::X)
 | TImpR : forall X A B, Tableau (A→B::X) -> Tableau (B::X)
+| TNAndL : forall X A B, Tableau (¬(A∧B)::X) -> Tableau (¬A::X)
+| TNAndR : forall X A B, Tableau (¬(A∧B)::X) -> Tableau (¬B::X)
+| TNOr : forall X A B, Tableau (¬(A∨B)::X) -> Tableau (¬A::¬B::X)
+| TNImp : forall X A B, Tableau (¬(A→B)::X) -> Tableau (A::¬B::X)
 .
 
-Definition IsClosed T := or (exists A, In A T -> In (¬A) T) (In ⊥ T).
+Definition IsClosed T := or (exists A, In A T /\ In (¬A) T) (In ⊥ T).
 
 Print IsClosed.
 

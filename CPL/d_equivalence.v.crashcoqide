@@ -66,7 +66,7 @@ Proof.
         destruct H5; auto; destruct H5; auto; destruct H5; auto; destruct H5; auto.
 Qed.
 
-Lemma SetPropEq_sym : forall Γ Δ, SetPropEq Γ Δ -> SetPropEq Δ Γ.
+Lemma SetPropEq_comm : forall Γ Δ, SetPropEq Γ Δ -> SetPropEq Δ Γ.
 Proof.
   intros.
   unfold SetPropEq in *. intros. pose (H' := H A). apply iff_sym. assumption.
@@ -86,7 +86,7 @@ Proof.
   split; auto; auto.
 Qed.
 
-Hint Resolve SetPropEq_trans SetPropEq_sym.
+Hint Resolve SetPropEq_trans SetPropEq_comm.
 
 Lemma SetPropEq_app : forall Γ Δ, SetPropEq (Γ ++ Δ) (Δ ++ Γ).
 Proof.
@@ -99,37 +99,28 @@ Proof.
       apply in_or_app in H; assumption.
 Qed.
 
-Lemma SetPropEq_cons :
-  forall Γ Δ A B, SetPropEq Γ (A::B::Δ) -> SetPropEq Γ (B::A::Δ).
+Theorem sequent_equiv_tableau_P : forall T,
+  (T <> nil) ->
+  (ClosedT_P T <-> (exists Γ Δ, (SetPropEq T (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ)))).
 Proof.
-  unfold SetPropEq; intros; pose (H' := H A0).
-  destruct H'; split.
-    intros; pose (H3 := H0 H2); simpl in *.
-    destruct H3; auto; destruct H3; auto; auto.
-  intros; refine (H1 _); simpl in *.
-    destruct H2; auto; destruct H2; auto; auto.
-Qed.
-
-Theorem tableau_to_sequent_P : forall T,
-  IsClosed T -> 
-  (exists Γ Δ, (SetPropEq T (SetNegate Δ ++ Γ)) /\ (DerSeq_P (Γ ⇒ Δ))).
-Proof.
-  intros. unfold IsClosed in H. destruct H.
-    destruct H.
-      pose proof (inListExists2 x (¬x) T) as setEq.
-      destruct H.
-      pose (setEq' := setEq H H0); destruct setEq'.
-      refine (ex_intro _ (x::x0) _); refine (ex_intro _ (x::nil) _);
-      split.
-      unfold SetNegate; simpl.
-      apply SetPropEq_cons in H1; assumption.
-      refine ((SId x (x::x0) (x::nil)) _ _); simpl; auto; simpl; auto.
-
-      pose proof (inListExists1 ⊥ T) as setEq.
-      pose (setEq' := setEq H); destruct setEq'.
-      refine (ex_intro _ (⊥ :: x) _); refine (ex_intro _ nil _).
-      unfold SetNegate; simpl; split.
-      assumption. refine ((SBotL (⊥ :: x) nil) _). simpl; auto.
-Qed.
+  induction T.
+    intros; contradict H; trivial.
+    
+    intros.
+    unfold iff; split.
+      intros.
+        destruct H0.
+          contradict H; trivial.
+          
+          pose proof inListExists2 (¬A) A T0 H1 H0 as thm.
+          destruct thm. refine (ex_intro _ (A::x) _).
+          refine (ex_intro _ (A::nil) _). split.
+            unfold SetNegate; simpl.
+            pose (H3 := SetPropEq_app (A::x) (¬A::nil)).
+            simpl in *. exact (SetPropEq_trans H2 (SetPropEq_comm H3)).
+            exact (SId A (A::x) (A::nil) (in_eq A x) (in_eq A nil)).
+          
+          
+Admitted.
 
 End equivalence_mod.
