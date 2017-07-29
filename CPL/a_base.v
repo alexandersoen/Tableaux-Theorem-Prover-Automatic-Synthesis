@@ -51,12 +51,6 @@ Compute (1 :: 2 :: nil = 2 :: 1 :: nil).
 
 Definition SetPropEq (l1 l2 : list PropF) := (forall A, In A l1 <-> In A l2).
 
-Fixpoint map (A B : Type) (f : B -> A) (l : list B) :=
-  match l with
-  | nil => nil
-  | x::xs => (f x)::(map f xs)
-  end.
-
 Definition SetNegate (l : list PropF) := map (fun p => ¬p) l.
 
 End base_mod.
