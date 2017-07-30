@@ -344,8 +344,24 @@ Proof.
     destruct H. rewrite H; simpl; auto. destruct H. discriminate H. 
     simpl; refine (or_intror _); apply in_app_comm; assumption.
     
+    refine (ex_intro _ (⊥::nil) _).
+    refine (ex_intro _ (nil) _).
+    unfold SetNegate. unfold SetPropEq.
+    unfold iff; intros; simpl in *; split.
+      intros; split.
+        intros. assumption.
+        intros. assumption.
+    constructor. simpl. auto.
     
-Admitted.
+    refine (ex_intro _ (⊥::nil) _).
+    refine (ex_intro _ (nil) _).
+    unfold SetNegate. unfold SetPropEq.
+    unfold iff; intros; simpl in *; split.
+      intros; split.
+        intros. assumption.
+        intros. assumption.
+    constructor. simpl. auto.
+Qed.
 
 Theorem sequent_to_tableau_P : forall L (T : Tableau L),
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ)))
