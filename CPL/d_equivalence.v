@@ -197,6 +197,22 @@ Theorem tableau_to_sequent_P : forall L,
   ClosedT_P L -> 
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
 Proof.
+  intros. destruct H.
+    assert (H1 := (inListExists2 A _ _) H H0); destruct H1.
+    refine (ex_intro _ (A::x) _);
+    refine (ex_intro _ (A::nil) _);
+    simpl; split.
+      unfold SetPropEq in *; unfold iff in *; intros;
+      assert (H2 := H1 A0); destruct H2; split; intros; simpl in *;
+      repeat (rewrite in_app_iff in *; simpl in *); intuition.
+    apply (SId A); simpl; auto.
+    
+    apply TAnd in H.
+    refine (ex_intro _ (L1 ++ A ∧ B :: L2) _);
+    refine (ex_intro _ (nil) _);
+    simpl; split.
+      rewrite app_nil_r; exact (SetPropEq_refl _).
+    
 Admitted.
 
 Theorem sequent_to_tableau_P : forall L,
