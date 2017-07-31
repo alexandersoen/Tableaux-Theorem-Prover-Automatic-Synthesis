@@ -193,6 +193,44 @@ Proof.
   assumption.
 Qed.
 
+Lemma in_split2 : forall (L : list PropF) A B,
+  A <> B -> In A L -> In B L -> 
+    ((exists L1 L2 L3, L = L1++A::L2++B::L3) \/
+    (exists L1 L2 L3, L = L1++B::L2++A::L3)).
+Proof.
+  intros L A B neg.
+  intros. induction L. contradiction H. simpl in *.
+  destruct H, H0.
+    repeat refine (or_intror _). refine (ex_intro _ nil _).
+    refine (ex_intro _ L _). rewrite <- H in neg. rewrite <- H0 in neg.
+    intuition.
+    
+    rewrite H. apply in_split in H0; destruct H0; destruct H0.
+    rewrite H0.
+    refine (or_introl _). refine (ex_intro _ nil _).
+    refine (ex_intro _ x _). refine (ex_intro _ x0 _). intuition.
+    
+    rewrite H0. apply in_split in H; destruct H; destruct H.
+    rewrite H.
+    refine (or_intror _). refine (ex_intro _ nil _).
+    refine (ex_intro _ x _). refine (ex_intro _ x0 _). intuition.
+    
+    destruct (IHL H H0). destruct H1. destruct H1. destruct H1.
+    rewrite H1.
+    refine (or_introl _).
+    refine (ex_intro _ (a::x) _).
+    refine (ex_intro _ (x0) _).
+    refine (ex_intro _ (x1) _).
+    intuition.
+    
+    destruct H1. destruct H1. destruct H1. rewrite H1.
+    refine (or_intror _).
+    refine (ex_intro _ (a::x) _).
+    refine (ex_intro _ (x0) _).
+    refine (ex_intro _ (x1) _).
+    intuition.
+Qed.
+
 Theorem tableau_to_sequent_P : forall L,
   ClosedT_P L -> 
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
@@ -207,18 +245,48 @@ Proof.
       repeat (rewrite in_app_iff in *; simpl in *); intuition.
     apply (SId A); simpl; auto.
     
-    apply TAnd in H.
     refine (ex_intro _ (L1 ++ A ∧ B :: L2) _);
     refine (ex_intro _ (nil) _);
     simpl; split.
       rewrite app_nil_r; exact (SetPropEq_refl _).
+    constructor. induction H.
+      pose proof (discriminate_neg) as neg.
+      pose proof (in_split2 _ (neg A0) H H0) as L'.
+      destruct L'; destruct H1; destruct H1;
+        destruct H1; rewrite H1.
+        pose proof (app_assoc x (A0 :: x0) (¬ A0 :: x1)).
+        simpl in H2; rewrite H2.
+        apply (SBotL A0 _ x1 nil _).
+        apply (SId A0); simpl; intuition.
+        apply (SBotL A0 x _ nil _).
+        apply (SId A0); simpl; intuition.
+      apply (SAndL _) in IHClosedT_P; assumption.
+      apply (SBotL (A0 ∧ B0) L0 _ nil _).
+      apply (SRBotL A0 L0 _ nil _) in IHClosedT_P1.
+      apply (SRBotL B0 L0 _ nil _) in IHClosedT_P2.
+      refine (SAndR _ _ _ _ _ _); assumption.
+      
+    refine (ex_intro _ (L1 ++ L2) _);
+    refine (ex_intro _ (A ∧ B :: nil) _);
+      simpl; split.
+      unfold SetPropEq in *; unfold iff in *; split; intros; simpl in *;
+      repeat (rewrite in_app_iff in *; simpl in *); intuition.
     
+Admitted.
+
+Lemma SetPropEq_tableau : forall L1 L2, SetPropEq L1 L2
+  -> (ClosedT_P L1 <-> ClosedT_P L2).
 Admitted.
 
 Theorem sequent_to_tableau_P : forall L,
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ)))
   -> ClosedT_P L.
 Proof.
+  intros. repeat destruct H. inversion H0. admit. admit. admit. admit. admit.
+  rewrite (SetPropEq_tableau H). rewrite <- H1. rewrite <- H3.
+  rewrite <- (app_assoc _ ).
+  apply (TAnd _).
+
 Admitted.
 
 End equivalence_mod.

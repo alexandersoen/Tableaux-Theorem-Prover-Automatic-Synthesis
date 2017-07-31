@@ -29,6 +29,8 @@ Notation "⊤" := Top (at level 0) : My_scope.
 Definition BiImpl A B := (A→B)∧(B→A).
 Notation "A ↔ B" := (BiImpl A B) (at level 17, right associativity) : My_scope.
 
+Axiom discriminate_neg : forall A, A <> ¬A.
+
 Definition Complement (P : PropF) : PropF :=
   match P with
   | (A → ⊥) => A
