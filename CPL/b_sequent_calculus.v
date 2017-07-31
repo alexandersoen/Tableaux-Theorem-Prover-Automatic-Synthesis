@@ -5,7 +5,7 @@ Module Type sequent_calculus_mod (X : base_mod).
 Import X.
 
 Inductive Seq : Type :=
-| Arrow : list PropF -> list PropF -> Seq.
+  | Arrow : list PropF -> list PropF -> Seq.
 
 Notation "Γ ⇒ Δ" := (Arrow Γ Δ) (at level 80): My_scope.
 (* To fix, turn inductive type wrt Seq *)
@@ -18,6 +18,7 @@ Inductive DerSeq_P : Seq -> Prop :=
   | SOrL  : forall A B Γ1 Γ2 Δ, DerSeq_P (Γ1++A::Γ2 ⇒ Δ)    -> DerSeq_P (Γ1++B::Γ2 ⇒ Δ)   -> DerSeq_P (Γ1++A∨B::Γ2 ⇒ Δ)
   | SOrR  : forall A B Γ Δ1 Δ2, DerSeq_P (Γ ⇒ Δ1++A::B::Δ2)                               -> DerSeq_P (Γ ⇒ Δ1++A∨B::Δ2)
   | SImpL : forall A B Γ1 Γ2 Δ, DerSeq_P (Γ1++B::Γ2 ⇒ Δ)    -> DerSeq_P (Γ1++Γ2 ⇒ A::Δ)   -> DerSeq_P (Γ1++A→B::Γ2 ⇒ Δ)
-  | SImpR : forall Γ Δ1 Δ2 A B, DerSeq_P (A::Γ ⇒ Δ1++B::Δ2)                               -> DerSeq_P (Γ ⇒ Δ1++A→B::Δ2).
+  | SImpR : forall Γ Δ1 Δ2 A B, DerSeq_P (A::Γ ⇒ Δ1++B::Δ2)                               -> DerSeq_P (Γ ⇒ Δ1++A→B::Δ2)
+.
 
 End sequent_calculus_mod.

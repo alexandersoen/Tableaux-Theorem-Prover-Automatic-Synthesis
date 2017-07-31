@@ -193,6 +193,36 @@ Proof.
   assumption.
 Qed.
 
+Lemma test : forall L, ClosedT_P (T L) -> In ⊥ L.
+Proof.
+  intros. 
+
+Theorem tableau_to_sequent_P : forall L,
+  ClosedT_P (T L) -> 
+  (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
+Proof.
+  intros; inversion_clear H.
+    apply inListExists1 in H0; destruct H0.
+    refine (ex_intro _ (⊥::x) _);
+    refine (ex_intro _ nil _);
+    simpl in *; split.
+      rewrite app_nil_r; assumption.
+      constructor; simpl; auto.
+
+    refine (ex_intro _ (⊥::nil) _);
+    refine (ex_intro _ nil _);
+    simpl in *; split.
+      exact (SetPropEq_refl _).
+      constructor; simpl; auto.
+
+    refine (ex_intro _ (L1 ++ A :: B :: L2) _);
+    refine (ex_intro _ nil _);
+    simpl in *; split.
+      rewrite app_nil_r; exact (SetPropEq_refl _).
+      constructor.
+      apply (TAnd _) in H0.
+      inversion_clear H0.
+
 Theorem tableau_to_sequent_P : forall L (T : Tableau L),
   ClosedT_P T -> 
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
@@ -363,11 +393,24 @@ Proof.
     constructor. simpl. auto.
 Qed.
 
+Theorem test : forall A (T : Tableau (A::¬A::nil)), ClosedT_P T.
+Proof.
+  intros. apply Closed. constructor. apply (TBotL nil nil nil) in T.
+  pose proof (TBotL nil nil nil) as TBotL.
+  pose (H := ((TBotL A) T)).
+  constructor.
+
 Theorem sequent_to_tableau_P : forall L (T : Tableau L),
   (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ)))
   -> ClosedT_P T.
 Proof.
-  intros. constructor. repeat destruct H.
+  intros. repeat destruct H. constructor.
+  inversion T; rewrite <- H2 in *. clear H2.
+  
+  
+  
+  
+   induction T. constructor. repeat destruct H.
   (* inversion T; rewrite <- H2 in *; clear H2; clear L.
   inversion H0.
     rewrite <- H2 in *; rewrite <- H3 in *; clear H2; clear H3;

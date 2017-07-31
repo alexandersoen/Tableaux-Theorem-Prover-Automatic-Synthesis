@@ -29,6 +29,13 @@ Notation "⊤" := Top (at level 0) : My_scope.
 Definition BiImpl A B := (A→B)∧(B→A).
 Notation "A ↔ B" := (BiImpl A B) (at level 17, right associativity) : My_scope.
 
+Definition Complement (P : PropF) : PropF :=
+  match P with
+  | (A → ⊥) => A
+  | A => ¬ A
+  end.
+
+Notation "A ^c" := (Complement A) (at level 2) : My_scope.
 
 Fixpoint map_fold_right (A B:Type) (f : B -> A) (g : A -> A -> A) a l := match l with
  | nil => a
