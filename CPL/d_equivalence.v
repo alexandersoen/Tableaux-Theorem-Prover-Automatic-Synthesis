@@ -6,6 +6,108 @@ Module Type equivalence_mod
   (Z : tableau_calculus_mod X).
 Import X Y Z.
 
+Definition tuple_app (A B : list PropF * list PropF) :=
+  (fst A ++ fst B, snd A ++ snd B).
+
+Notation "A ++_ B" := (tuple_app A B)
+  (at level 80, right associativity) : My_scope.
+
+Fixpoint node_split (L : Tableau) :=
+  match L with
+  | nil => (nil, nil)
+  | x::xs => match x with
+             | x → ⊥ => (nil, x::nil) ++_ (node_split xs)
+             | x => (x::nil, nil) ++_ (node_split xs)
+             end
+  end.
+
+(* Fixpoint node_split_help (L : Tableau) (Γ Δ : list PropF) :=
+  match L with
+  | nil => (Γ, Δ)
+  | x::xs => match x with
+             | x → ⊥ => node_split_help xs Γ (Δ++x::nil)
+             | x  => node_split_help xs (Γ++x::nil) Δ
+             end
+  end.
+
+Definition node_split L := (node_split_help L nil nil). *)
+
+Lemma fst_snd_node_split : forall A,
+  node_split A = (fst (node_split A), snd (node_split A)).
+Proof.
+  intros. induction A.
+    unfold node_split; simpl; trivial.
+    case a; intros; simpl; rewrite IHA; unfold tuple_app; simpl; trivial.
+    case p0; intros; simpl; trivial.
+Qed.
+
+Lemma tuple_list_app : forall A B,
+  node_split (A ++ B) = ((node_split A) ++_ (node_split B)).
+Proof.
+  intros. unfold tuple_app. induction A, B.
+    unfold node_split; unfold tuple_app; simpl; trivial.
+    
+    rewrite app_nil_l; simpl (node_split nil);
+    simpl (fst (nil, nil)); simpl (snd (nil, nil)); rewrite app_nil_l;
+    rewrite <- fst_snd_node_split; trivial.
+    
+    rewrite app_nil_r; simpl (node_split nil);
+    simpl (fst (nil, nil)); simpl (snd (nil, nil)); repeat rewrite app_nil_r;
+    rewrite <- fst_snd_node_split; trivial.
+    
+    case a; simpl (node_split (_ :: A));
+    simpl (node_split ((_ :: A) ++ p :: B));
+    intros; rewrite IHA; unfold tuple_app; simpl; trivial.
+      case p1; intros; unfold tuple_app; simpl; trivial.
+Qed.
+
+Lemma node_split_split : forall L,
+  exists A B, node_split L = (A, B).
+Proof.
+  intros; induction L.
+    repeat refine (ex_intro _ nil _); simpl; trivial.
+    destruct IHL; destruct H. case a; intros.
+      refine (ex_intro _ (# p :: x) _);
+      refine (ex_intro _ (x0) _).
+      simpl; rewrite H; unfold tuple_app; simpl; trivial.
+      
+      refine (ex_intro _ (⊥ :: x) _);
+      refine (ex_intro _ (x0) _).
+      simpl; rewrite H; unfold tuple_app; simpl; trivial.
+      
+      refine (ex_intro _ (p ∧ p0 :: x) _);
+      refine (ex_intro _ (x0) _).
+      simpl; rewrite H; unfold tuple_app; simpl; trivial.
+      
+      refine (ex_intro _ (p ∨ p0 :: x) _);
+      refine (ex_intro _ (x0) _).
+      simpl; rewrite H; unfold tuple_app; simpl; trivial.
+      
+      case p0; intros.
+        refine (ex_intro _ (p → # p1 :: x) _);
+        refine (ex_intro _ (x0) _).
+        simpl; rewrite H; unfold tuple_app; simpl; trivial.
+        
+        refine (ex_intro _ (x) _);
+        refine (ex_intro _ (p :: x0) _).
+        simpl; rewrite H; unfold tuple_app; simpl; trivial.
+        
+        refine (ex_intro _ (p → p1 ∧ p2 :: x) _);
+        refine (ex_intro _ (x0) _).
+        simpl; rewrite H; unfold tuple_app; simpl; trivial.
+        
+        refine (ex_intro _ (p → p1 ∨ p2 :: x) _);
+        refine (ex_intro _ (x0) _).
+        simpl; rewrite H; unfold tuple_app; simpl; trivial.
+        
+        refine (ex_intro _ (p → p1 → p2 :: x) _);
+        refine (ex_intro _ (x0) _).
+        simpl; rewrite H; unfold tuple_app; simpl; trivial.
+Qed.
+
+Definition tuple_to_seq (N : list PropF * list PropF) :=
+  fst N ⇒ snd N.
+
 Lemma inListExists1 : forall A L, In A L ->
   (exists L', SetPropEq L (A::L')).
 Proof.
@@ -231,62 +333,277 @@ Proof.
     intuition.
 Qed.
 
-Theorem tableau_to_sequent_P : forall L,
-  ClosedT_P L -> 
-  (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ))).
+Lemma cons_node_list : forall (x : PropF) xs, node_split (x::xs) =
+  ((node_split (x::nil)) ++_ (node_split xs)).
 Proof.
-  intros. destruct H.
-    assert (H1 := (inListExists2 A _ _) H H0); destruct H1.
-    refine (ex_intro _ (A::x) _);
-    refine (ex_intro _ (A::nil) _);
-    simpl; split.
-      unfold SetPropEq in *; unfold iff in *; intros;
-      assert (H2 := H1 A0); destruct H2; split; intros; simpl in *;
-      repeat (rewrite in_app_iff in *; simpl in *); intuition.
-    apply (SId A); simpl; auto.
-    
-    refine (ex_intro _ (L1 ++ A ∧ B :: L2) _);
-    refine (ex_intro _ (nil) _);
-    simpl; split.
-      rewrite app_nil_r; exact (SetPropEq_refl _).
-    constructor. induction H.
-      pose proof (discriminate_neg) as neg.
-      pose proof (in_split2 _ (neg A0) H H0) as L'.
-      destruct L'; destruct H1; destruct H1;
-        destruct H1; rewrite H1.
-        pose proof (app_assoc x (A0 :: x0) (¬ A0 :: x1)).
-        simpl in H2; rewrite H2.
-        apply (SBotL A0 _ x1 nil _).
-        apply (SId A0); simpl; intuition.
-        apply (SBotL A0 x _ nil _).
-        apply (SId A0); simpl; intuition.
-      apply (SAndL _) in IHClosedT_P; assumption.
-      apply (SBotL (A0 ∧ B0) L0 _ nil _).
-      apply (SRBotL A0 L0 _ nil _) in IHClosedT_P1.
-      apply (SRBotL B0 L0 _ nil _) in IHClosedT_P2.
-      refine (SAndR _ _ _ _ _ _); assumption.
+  intros. case x; intros; repeat (unfold tuple_app; simpl); trivial.
+  case p0; intros; simpl; trivial.
+Qed.
+
+Lemma app_cons_nil : forall (x : PropF) A B,
+  A ++ x :: B = (A ++ x :: nil) ++ B.
+Proof.
+  intros. rewrite <- app_assoc. rewrite <- app_comm_cons.
+  simpl. trivial.
+Qed.
+
+Lemma node_split_single : forall x,
+  (node_split (x::nil) = (x::nil, nil)) \/
+  (exists y, (x = ¬y) /\ node_split (x::nil) = (nil, y::nil)).
+Proof.
+  intros; case x; intros;
+    simpl; unfold tuple_app; simpl; intuition. case p0; intros; intuition.
+    refine (or_intror _); refine (ex_intro _ p _); intuition.
+Qed.
+
+Theorem tableau_to_sequent : forall L,
+  ClosedT_P L -> DerSeq_P (tuple_to_seq (node_split L)).
+Proof.
+  intros; induction H.
+    assert (N := discriminate_neg); pose (N' := N A);
+    pose (L' := in_split2 L N' H H0);
+    destruct L'; destruct H1; destruct H1; destruct H1; rewrite H1;
+    repeat (rewrite (tuple_list_app _);
+    rewrite (cons_node_list _)).
+      rewrite (cons_node_list (¬A)).
+      pose proof (node_split_split x); destruct H2; destruct H2.
+      pose proof (node_split_split x0); destruct H3; destruct H3.
+      pose proof (node_split_split x1); destruct H4; destruct H4.
+      rewrite H2; rewrite H3; rewrite H4; simpl. case A;
+        unfold tuple_app; unfold tuple_to_seq; simpl; intros.
+          apply (SId (# p)); intuition.
+          apply (SId (⊥)); intuition.
+          apply (SId (p ∧ p0)); intuition.
+          apply (SId (p ∨ p0)); intuition.
+          case p0; intros; simpl.
+            apply (SId (p → # p1)); intuition.
+            rewrite app_comm_cons; rewrite (app_assoc x3); apply (SImpR _);
+              apply (SId p); intuition.
+            apply (SId (p → p1 ∧ p2)); intuition.
+            apply (SId (p → p1 ∨ p2)); intuition.
+            apply (SId (p → p1 → p2)); intuition.
       
-    refine (ex_intro _ (L1 ++ L2) _);
-    refine (ex_intro _ (A ∧ B :: nil) _);
-      simpl; split.
-      unfold SetPropEq in *; unfold iff in *; split; intros; simpl in *;
-      repeat (rewrite in_app_iff in *; simpl in *); intuition.
+      rewrite (cons_node_list (A)).
+      pose proof (node_split_split x); destruct H2; destruct H2.
+      pose proof (node_split_split x0); destruct H3; destruct H3.
+      pose proof (node_split_split x1); destruct H4; destruct H4.
+      rewrite H2; rewrite H3; rewrite H4; simpl. case A;
+        unfold tuple_app; unfold tuple_to_seq; simpl; intros.
+          apply (SId (# p)); intuition.
+          apply (SId (⊥)); intuition.
+          apply (SId (p ∧ p0)); intuition.
+          apply (SId (p ∨ p0)); intuition.
+          case p0; intros; simpl.
+            apply (SId (p → # p1)); intuition.
+            apply (SImpR _);
+              apply (SId p); simpl; intuition; apply (in_app_iff _);
+              refine (or_intror _); apply (in_app_iff (⊥ :: x5)); 
+              refine (or_intror _); intuition.
+            apply (SId (p → p1 ∧ p2)); intuition.
+            apply (SId (p → p1 ∨ p2)); intuition.
+            apply (SId (p → p1 → p2)); intuition.
     
-Admitted.
+    pose (L' := in_split ⊥ L H); destruct L'; destruct H0.
+    rewrite H0.
+    repeat (rewrite (tuple_list_app _);
+    rewrite (cons_node_list _)). simpl.
+    pose proof (node_split_split x); destruct H1; destruct H1.
+    pose proof (node_split_split x0); destruct H2; destruct H2.
+    rewrite H1 in *; rewrite H2 in *; unfold tuple_app, tuple_to_seq; simpl.
+    constructor; intuition.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *.
+    rewrite (cons_node_list B) in IHClosedT_P.
+    pose proof (node_split_split L1); destruct H0; destruct H0.
+    pose proof (node_split_split L2); destruct H1; destruct H1.
+    rewrite H0, H1 in *. simpl.
+    unfold tuple_app, tuple_to_seq; simpl;
+    destruct (node_split_single A), (node_split_single B).
+      rewrite H2, H3 in *; unfold tuple_app, tuple_to_seq in *; simpl in *.
+      clear H2. clear H3.
+      apply SAndL; assumption.
+      destruct H3; destruct H3; rewrite H2, H3, H4 in *.
+      unfold tuple_app, tuple_to_seq in *; simpl in *. clear H2.
+      apply SAndL. unfold Neg. rewrite (app_cons_nil A).
+      apply (SImpL _).
+        constructor; rewrite in_app_iff; refine (or_intror _); intuition.
+        rewrite <- app_assoc. intuition.
+      destruct H2; destruct H2; rewrite H2, H3, H4 in *.
+      unfold tuple_app, tuple_to_seq in *; simpl in *. clear H3.
+      apply SAndL. unfold Neg. apply (SImpL _).
+        constructor; rewrite in_app_iff; refine (or_intror _); intuition.
+        intuition.
+      destruct H2, H3; destruct H2, H3; rewrite H2, H3, H4, H5 in *.
+      unfold tuple_app, tuple_to_seq in *; simpl in *.
+      apply SAndL; unfold Neg. rewrite (app_cons_nil (x3 → ⊥));
+      apply (SImpL _).
+      rewrite (app_cons_nil ⊥).
+        constructor; intuition. rewrite <- (app_cons_nil (x3 → ⊥)).
+        apply (SImpL _).
+        constructor; intuition. assumption.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *.
+    pose proof (node_split_split L1); destruct H1; destruct H1.
+    pose proof (node_split_split L2); destruct H2; destruct H2.
+    simpl in IHClosedT_P1; simpl in IHClosedT_P2.
+    rewrite H1, H2 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *.
+    apply (SAndR _ _ _ _); assumption.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *.
+    pose proof (node_split_split L1); destruct H1; destruct H1.
+    pose proof (node_split_split L2); destruct H2; destruct H2.
+    destruct (node_split_single A), (node_split_single B).
+    rewrite H1, H2, H3, H4 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *.
+    clear H3. clear H4.
+    apply SOrL; assumption.
+    destruct H4; destruct H4.
+    rewrite H1, H2, H3, H4, H5 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *. clear H3.
+    apply SOrL. assumption.
+    unfold Neg. apply SImpL.
+    constructor; intuition. assumption.
+    destruct H3; destruct H3.
+    rewrite H1, H2, H3, H4, H5 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *. clear H4.
+    apply SOrL.
+    unfold Neg. apply SImpL.
+    constructor; intuition. assumption.
+    assumption.
+    destruct H3; destruct H3; destruct H4; destruct H4.
+    rewrite H1, H2, H3, H4, H5, H6 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *. clear H3. clear H4.
+    apply SOrL.
+    unfold Neg. apply SImpL.
+    constructor; intuition. assumption.
+    unfold Neg. apply SImpL.
+    constructor; intuition. assumption.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *.
+    pose proof (node_split_split L1); destruct H1; destruct H1.
+    pose proof (node_split_split L2); destruct H2; destruct H2.
+    destruct (node_split_single B).
+    rewrite H1, H2, H3 in *.
+    unfold tuple_app, tuple_to_seq in *; simpl in *. clear H3.
+    case B in *; intros; simpl in *; try apply SImpL; assumption.
+    destruct H3; destruct H3.
+    rewrite H1, H2, H3, H4 in *.
+    unfold tuple_app, tuple_to_seq in *; simpl in *.
+    apply SImpL. unfold Neg; apply SImpL.
+    constructor; intuition. assumption. assumption.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *;
+    rewrite (cons_node_list (¬B)) in *.
+    pose proof (node_split_split L1); destruct H0; destruct H0.
+    pose proof (node_split_split L2); destruct H1; destruct H1.
+    rewrite H0, H1 in *;
+    unfold tuple_app, tuple_to_seq in *; simpl in *.
+    apply SOrR; assumption.
+    
+    rewrite tuple_list_app in *;
+    rewrite (cons_node_list) in *;
+    rewrite (cons_node_list (¬B)) in *.
+    pose proof (node_split_split L1); destruct H0; destruct H0.
+    pose proof (node_split_split L2); destruct H1; destruct H1.
+    destruct (node_split_single A).
+    rewrite H0, H1, H2 in *.
+    unfold tuple_app, tuple_to_seq in *; simpl in *. clear H2.
+    apply SImpR. assumption.
+    destruct H2; destruct H2.
+    rewrite H0, H1, H2, H3 in *.
+    unfold tuple_app, tuple_to_seq in *; simpl in *.
+    apply SImpR. unfold Neg. apply SImpL.
+    constructor; intuition. assumption.
+Qed.
 
-Lemma SetPropEq_tableau : forall L1 L2, SetPropEq L1 L2
-  -> (ClosedT_P L1 <-> ClosedT_P L2).
-Admitted.
-
-Theorem sequent_to_tableau_P : forall L,
-  (exists Γ Δ, (SetPropEq L (Γ ++ SetNegate Δ)) /\ (DerSeq_P (Γ ⇒ Δ)))
-  -> ClosedT_P L.
+Lemma set_negate_distr : forall A B,
+  SetNegate (A ++ B) = SetNegate A ++ SetNegate B.
 Proof.
-  intros. repeat destruct H. inversion H0. admit. admit. admit. admit. admit.
-  rewrite (SetPropEq_tableau H). rewrite <- H1. rewrite <- H3.
-  rewrite <- (app_assoc _ ).
-  apply (TAnd _).
+  intros; unfold SetNegate. apply map_app.
+Qed.
 
+Require Import Coq.Program.Equality.
+
+Lemma tableau_comm : forall A B C D,
+  ClosedT_P (A ++ (B ++ C) ++ D) <-> ClosedT_P (A ++ (C ++ B) ++ D).
+Proof.
+  intros; unfold iff; split; intros. dependent induction H.
+  assert (N := discriminate_neg); pose (N' := N A0);
+    pose (L' := in_split2 _ N' H H0);
+    destruct L'; destruct H1; destruct H1; destruct H1.
+    rewrite H1 in *.
 Admitted.
+
+Theorem sequent_to_tableau_P : forall Γ Δ,
+  (DerSeq_P (Γ ⇒ Δ))
+  -> ClosedT_P (Γ ++ SetNegate Δ).
+Proof.
+  intros. dependent induction H.
+    apply in_split in H; destruct H; destruct H; rewrite H in *.
+    apply in_split in H0; destruct H0; destruct H0; rewrite H0 in *.
+    rewrite (set_negate_distr _); simpl.
+    apply (TId _ A); intuition.
+    
+    apply in_split in H; destruct H; destruct H; rewrite H in *.
+    constructor; intuition.
+    
+    pose (IH := IHDerSeq_P (Γ1 ++ A :: B :: Γ2) Δ). intuition.
+    rewrite <- (app_assoc _). rewrite <- app_comm_cons.
+    apply TAnd. rewrite <- app_assoc in H0; simpl in H0; assumption.
+    
+    pose (IH1 := IHDerSeq_P1 Γ (Δ1++A::Δ2)).
+    pose (IH2 := IHDerSeq_P2 Γ (Δ1++B::Δ2)). intuition.
+    clear IHDerSeq_P1. clear IHDerSeq_P2.
+    rewrite set_negate_distr in *; simpl in *.
+    rewrite app_assoc in *.
+    exact (TNAnd _ _ _ _ H1 H2).
+    
+    pose (IH1 := IHDerSeq_P1 (Γ1++A::Γ2) Δ).
+    pose (IH2 := IHDerSeq_P2 (Γ1++B::Γ2) Δ). intuition.
+    clear IHDerSeq_P1. clear IHDerSeq_P2.
+    rewrite <- app_assoc in *.
+    rewrite <- app_comm_cons in *.
+    exact (TOr _ _ _ _ H1 H2).
+    
+    pose (IH := IHDerSeq_P Γ (Δ1++A::B::Δ2)). intuition.
+    clear IHDerSeq_P. rewrite set_negate_distr in *; simpl in *.
+    rewrite app_assoc in *.
+    exact (TNOr _ _ _ _ H0).
+    
+    pose (IH1 := IHDerSeq_P1 (Γ1++B::Γ2) (Δ1++Δ2)).
+    pose (IH2 := IHDerSeq_P2 (Γ1++Γ2) (Δ1++A::Δ2)). intuition.
+    clear IHDerSeq_P1. clear IHDerSeq_P2.
+    rewrite set_negate_distr in *; simpl in *.
+    rewrite <- app_assoc in *.
+    rewrite <- app_comm_cons in *.
+    rewrite (app_assoc Γ2) in H2.
+    rewrite (app_cons_nil _) in H2.
+    rewrite (tableau_comm _) in H2.
+    simpl in H2.
+    rewrite <- app_assoc in *.
+    exact (TImp _ _ _ _ H2 H1).
+    
+    pose (IH := IHDerSeq_P (Γ1++A::Γ2) (Δ1++B::Δ2)). intuition.
+    clear IHDerSeq_P.
+    rewrite set_negate_distr in *; simpl in *.
+    rewrite (app_cons_nil _) in H0.
+    rewrite <- app_assoc in *.
+    rewrite <- app_assoc in *.
+    rewrite (app_assoc (A::nil)) in H0.
+    rewrite (app_assoc (A::nil++Γ2)) in H0.
+    rewrite <- (app_assoc (A::nil) Γ2) in H0.
+    rewrite (tableau_comm _) in H0.
+    repeat rewrite <- app_assoc in H0.
+    rewrite <- (app_comm_cons _) in H0. simpl in H0.
+    rewrite (app_assoc _) in H0. rewrite (app_assoc _) in H0.
+    rewrite (app_assoc _). rewrite (app_assoc _).
+    exact (TNImp _ _ _ _ H0).
+Qed.
 
 End equivalence_mod.
