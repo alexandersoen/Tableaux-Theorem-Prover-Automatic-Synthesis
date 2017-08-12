@@ -533,11 +533,23 @@ Require Import Coq.Program.Equality.
 Lemma tableau_comm : forall A B C D,
   ClosedT_P (A ++ (B ++ C) ++ D) <-> ClosedT_P (A ++ (C ++ B) ++ D).
 Proof.
-  intros; unfold iff; split; intros. dependent induction H.
-  assert (N := discriminate_neg); pose (N' := N A0);
-    pose (L' := in_split2 _ N' H H0);
-    destruct L'; destruct H1; destruct H1; destruct H1.
-    rewrite H1 in *.
+  intros; unfold iff; split; intros. dependent induction H. (* inversion H. *)
+    apply (TId _ A0).
+    repeat rewrite in_app_iff in *. rewrite (or_comm (In A0 C)).
+    assumption.
+    repeat rewrite in_app_iff in *. rewrite (or_comm (In (¬A0) C)).
+    assumption.
+      
+    constructor. repeat rewrite in_app_iff in *.
+    rewrite (or_comm (In ⊥ C)). assumption.
+    pose (IH := IHClosedT_P A B C D).
+    rewrite <- x in IH. intuition.
+    
+    assert (In (A0∧B0) (A ++ (B ++ C) ++ D)). rewrite <- H0; intuition.
+    assert (In (A0∧B0) (A ++ (C ++ B) ++ D)).
+    repeat rewrite in_app_iff in *; intuition.
+    destruct (in_split _ _ H3). destruct H4. rewrite H4.
+    apply TAnd.
 Admitted.
 
 Theorem sequent_to_tableau_P : forall Γ Δ,
