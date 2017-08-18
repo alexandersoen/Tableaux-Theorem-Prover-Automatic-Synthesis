@@ -4,3 +4,5 @@
 *.vo
 *.vo.aux
 *.v.crashcoqide
+*.aux
+*.log

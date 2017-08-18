@@ -43,11 +43,23 @@ Proof.
     apply SBot.
     repeat rewrite in_app_iff in *; simpl in *; intuition.
 
+(*
     (* AndL *)
     pose proof (eqlist_permute1 Γ0 Γ3 Γ1 Γ2 (A∧B) D E); intuition.
       destruct_exists. destruct_conjs.
     pose (IH' := IHDerSeq p0 p); intuition; pose (IH := IH' p0 p)
     pose (IH := IHDerSeq Γ0 Γ3 Δ A B). intuition. apply SAndL in H0.
+*)
+Admitted.
+
+Theorem interchange_L :
+  forall Γ1 Γ2 Δ D E,
+    DerSeq (Γ1++D::E::Γ2 ⇒ Δ) -> DerSeq (Γ1++E::D::Γ2 ⇒ Δ).
+Admitted.
+
+Theorem interchange_R :
+  forall Γ Δ1 Δ2 D E,
+    DerSeq (Γ ⇒ Δ1++D::E::Δ2) -> DerSeq (Γ ⇒ Δ1++E::D::Δ2).
 Admitted.
 
 Theorem thinning_L :
@@ -89,7 +101,54 @@ Proof.
 
     (* ImpR *)
     pose (IH := IHDerSeq (A::Γ) (Δ1++B::Δ2)); intuition.
-    apply SImpR. admit. (* Need Exchange Lemma *)
-Admitted.
+    apply SImpR. apply (interchange_L nil Γ D A); intuition.
+    (* Need Exchange Lemma *)
+Qed.
+
+Theorem thinning_R :
+  forall Γ Δ D, DerSeq (Γ ⇒ Δ) -> DerSeq (Γ ⇒ D::Δ).
+Proof.
+  intros. dependent induction H.
+    (* Id *)
+    apply in_split in H; apply in_split in H0;
+    destruct H; destruct H; destruct H0; destruct H0;
+    rewrite H; rewrite H0.
+    apply (SId A); intuition.
+
+    (* Bot *)
+    apply in_split in H; destruct H; destruct H; rewrite H.
+    apply SBot; intuition.
+
+    (* AndL *)
+    pose (IH := IHDerSeq (Γ1++A::B::Γ2) Δ); intuition;
+    apply SAndL; assumption.
+
+    (* AndR *)
+    pose (IH := IHDerSeq1 Γ (Δ1++A::Δ2)); intuition;
+    pose (IH := IHDerSeq2 Γ (Δ1++B::Δ2)); intuition.
+    rewrite app_comm_cons; apply SAndR; assumption.
+
+    (* OrL *)
+    pose (IH := IHDerSeq1 (Γ1++A::Γ2) Δ); intuition;
+    pose (IH := IHDerSeq2 (Γ1++B::Γ2) Δ); intuition.
+    apply SOrL; assumption.
+
+    (* OrR *)
+    pose (IH := IHDerSeq Γ (Δ1++A::B::Δ2)); intuition.
+    rewrite app_comm_cons; apply SOrR; assumption.
+
+    (* ImpL *)
+    pose (IH := IHDerSeq1 (Γ1++B::Γ2) Δ); intuition;
+    pose (IH := IHDerSeq2 (Γ1++Γ2) (A::Δ)); intuition.
+    apply SImpL; intuition.
+    apply (interchange_R nil Δ D A); intuition.
+
+    (* ImpR *)
+    pose (IH := IHDerSeq (A::Γ) (Δ1++B::Δ2)); intuition.
+    rewrite app_comm_cons; apply SImpR; intuition.
+    (* Need Exchange Lemma *)
+Qed.
+
+
 
 End admissibility_mod.

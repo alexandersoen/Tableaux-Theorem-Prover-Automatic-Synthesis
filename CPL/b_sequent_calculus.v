@@ -8,7 +8,6 @@ Inductive Seq : Type :=
   | Arrow : list PropF -> list PropF -> Seq.
 
 Notation "Γ ⇒ Δ" := (Arrow Γ Δ) (at level 80): My_scope.
-(* To fix, turn inductive type wrt Seq *)
 
 Inductive DerSeq_P : Seq -> Prop :=
   | SId   : forall A Γ Δ          , In A Γ                           -> In A Δ                        -> DerSeq_P (Γ ⇒ Δ)

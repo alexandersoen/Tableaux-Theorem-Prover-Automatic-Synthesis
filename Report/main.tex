@@ -1,0 +1,53 @@
+\documentclass{report}
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{mathtools}
+
+\title{ Automated Synthesis of a Tableaux Theorem Prover for Classical
+Propositional Logic using Coq}
+\author{Alexander Soen}
+
+\begin{document}
+
+\begin{abstract}
+I prove the equivalence of tableau calculus and sequent calculus.
+\end{abstract}
+
+\section{Introduction}
+
+\section{Proof Theory}
+
+The system of sequent calculus has been encoded into Coq based on the rules
+given by Floris van Doorn. First the notion of a sequent being a tuple of lists
+is defined, the left side and right side of a sequent. Given this, we encode
+the notion of sequent being derivable as a direct translation of the sequent
+rules.
+
+\par
+
+Furthermore, the system of tableau calculus was encoded in a similar manner.
+A tableau is represented as a list. Then the notion of a closed tableau is
+established through a direct translation of the tableau rules.
+
+\par
+
+To show that the system of tableau calculus is equivalent to the system of
+sequent calculus we aim to prove the following,
+
+\begin{equation}
+\text{closed }X \iff X=\Gamma \cup \neg \Delta \, \wedge \, \text{derivable }
+\Gamma ==> \Delta
+\label{tableau sequent equivalence}
+\end{equation}
+
+This is proven to an extent in Coq. Currently the proof is relent on the
+exchange lemma for the tableau calculus begin admitted.
+
+\par
+
+
+
+\end{document}
