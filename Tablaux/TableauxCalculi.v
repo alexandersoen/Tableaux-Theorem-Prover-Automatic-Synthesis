@@ -205,20 +205,25 @@ apply IHa. simpl in H. omega.
 Defined.
 
 Lemma unchanging : forall x π, length (applyPartition x π) <= length x.
-admit.
-Admitted.
- 
+Proof.
+  induction x. intros. unfold applyPartition. trivial.
+  simpl in *. intuition.
+Qed.
 
 Definition partitions_help (schema : PropFSet) : PropFSet -> partitionTuple -> list partitionTuple.
   refine (Fix (length_wf PropF) (fun _ => PropFSet -> partitionTuple -> list partitionTuple)
-   (fun schema f => (match schema as schema' return (schema = schema' -> PropFSet -> partitionTuple -> list partitionTuple) with
+   (fun schema partitions_help_rec =>
+   (match schema as schema' return (schema = schema' -> PropFSet -> partitionTuple -> list partitionTuple) with
     | nil => fun _ _ accπ => accπ::nil
     | s::ss => fun H Γ accπ => let Π := partition_help s Γ accπ in
-        flat_map (fun π => f (applyPartition ss π) _ Γ π) Π
+        flat_map (fun π => partitions_help_rec (applyPartition ss π) _ Γ π) Π
     end) eq_refl) schema).
     rewrite H. assert (length (applyPartition ss π) <= length ss) by apply unchanging.
     simpl. omega.
     Defined.
 
+Definition partitions schema Γ := partitions_help schema Γ nil.
 
-Compute (partitions_help ((# "p" → # "q")::nil) ((⊥ → ⊥::# "r" → ⊥::nil)) nil).
+Compute (partitions ((# "p" → # "q")::nil) ((⊥ → ⊥::# "r" → ⊥::nil))).
+
+Check Fix.
