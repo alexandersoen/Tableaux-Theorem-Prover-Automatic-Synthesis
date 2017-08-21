@@ -37,6 +37,16 @@ Fixpoint EquivPropF x y :=
   | (_, _) => false
   end.
 
+Fixpoint EquivPropV x y :=
+  match (x, y) with
+  | (# a, #b) => if string_dec a b then true else false
+  | (# a, ⊥) => false
+  | (# a, b1 ∧ b2) => orb (EquivPropV (# a) b1) (EquivPropV (# a) b2)
+  | (# a, b1 ∨ b2) => orb (EquivPropV (# a) b1) (EquivPropV (# a) b2)
+  | (# a, b1 → b2) => orb (EquivPropV (# a) b1) (EquivPropV (# a) b2)
+  | (_, _) => false
+  end.
+
 (* Basic set of PropF *)
 Definition PropFSet : Type := list PropF.
 
@@ -165,7 +175,7 @@ Fixpoint inPartitionTuple p (π : partitionTuple) :=
 Fixpoint usedVar (γ : PropF) (π : partitionTuple) :=
   match π with
   | nil => false
-  | x::xs => if (EquivPropF γ (fst x)) then true else usedVar γ xs
+  | x::xs => if (EquivPropF γ (snd x)) then true else usedVar γ xs
   end.
 
 Fixpoint extendPartition (π1 π2 : partitionTuple) :=
@@ -175,6 +185,7 @@ Fixpoint extendPartition (π1 π2 : partitionTuple) :=
               else (if usedVar (fst x) π1 then None else extendPartition (x::π1) xs)
   end.
 
+Compute extendPartition ((# "a", # "a")::nil) ((# "p", # "a" ∨ # "b")::nil).
 Check matchVar.
 
 Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : partitionTuple) :=
@@ -219,8 +230,18 @@ Definition partitions_help (schema : PropFSet) : PropFSet -> partitionTuple -> l
     simpl. omega.
     Defined.
 
-Definition partitions schema Γ := partitions_help schema Γ nil.
+Fixpoint filterpi (π : partitionTuple) :=
+  match π with
+  | nil => nil
+  | x::xs => if EquivPropF (fst x) (snd x) then filterpi xs else x::(filterpi xs)
+  end.
 
-Compute (partitions ((# "p" → # "q")::nil) ((⊥ → ⊥::# "r" → ⊥::nil))).
+Definition partitions schema Γ := map filterpi (partitions_help schema Γ nil).
+
+Compute (partitions ((# "p")::(¬(# "p"))::nil) (((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil))).
+
+Compute (extendPartition ((# "p", # "s") :: nil) ((# "s", ⊥)::nil) ).
 
 Check Fix.
+
+Recursive Extraction partitions.
