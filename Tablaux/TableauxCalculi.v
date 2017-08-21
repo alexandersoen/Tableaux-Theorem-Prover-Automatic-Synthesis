@@ -1,5 +1,5 @@
 (* Imports *)
-Require Import Bool List String Datatypes.
+Require Import Bool List String Datatypes Omega Coq.Arith.Compare_dec.
 
 (*
 Definition PropVars : string.
@@ -192,9 +192,6 @@ Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : partitionTuple) :
   end.
 
 Check flat_map.
-
-Require Import Omega.
-Require Import Coq.Arith.Compare_dec.
 
 Lemma length_wf : forall A, well_founded (fun (xs : list A) ys => length xs < length ys).
 intros. unfold well_founded. induction a.
