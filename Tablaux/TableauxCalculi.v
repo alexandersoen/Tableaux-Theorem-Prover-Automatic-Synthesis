@@ -175,14 +175,15 @@ Fixpoint inPartitionTuple p (π : partitionTuple) :=
 Fixpoint usedVar (γ : PropF) (π : partitionTuple) :=
   match π with
   | nil => false
-  | x::xs => if (EquivPropF γ (snd x)) then true else usedVar γ xs
+  | x::xs => if (EquivPropV γ (snd x)) then true else usedVar γ xs
   end.
 
 Fixpoint extendPartition (π1 π2 : partitionTuple) :=
   match π2 with
   | nil => Some π1
   | x::xs => if inPartitionTuple x π1 then extendPartition π1 xs
-              else (if usedVar (fst x) π1 then None else extendPartition (x::π1) xs)
+              else (if (EquivPropF (fst x) (snd x)) then extendPartition π1 xs else
+              (if usedVar (fst x) π1 then None else extendPartition (x::π1) xs))
   end.
 
 Compute extendPartition ((# "a", # "a")::nil) ((# "p", # "a" ∨ # "b")::nil).
