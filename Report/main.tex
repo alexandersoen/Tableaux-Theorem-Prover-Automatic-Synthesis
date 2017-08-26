@@ -5,6 +5,7 @@
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{mathtools}
+\usepackage{listings}
 
 \title{ Automated Synthesis of a Tableaux Theorem Prover for Classical
 Propositional Logic using Coq}
@@ -43,11 +44,99 @@ sequent calculus we aim to prove the following,
 \label{tableau sequent equivalence}
 \end{equation}
 
-This is proven to an extent in Coq. Currently the proof is relent on the
+This is proven to an extent in Coq. Currently the proof is reliant on the
 exchange lemma for the tableau calculus begin admitted.
 
 \par
 
+The proof is also reliant on a slight modification of rules. However,
+equivalence of the rules with respect to the ones being used by Floris van
+Doorn can be achieved through the admissibility of the weakening lemma.
 
+\par
+
+The admissibility of the structure rules, apart from the cut lemma, has been
+proven with Floris van Doorn's rules for sequent calculus by relying on a
+proof of the exchange lemma being admitted.
+
+\section{Tableau Rules}
+
+To implement a theorem prover in Coq, the notion of tableau rules was defined.
+The definition of a formula was taken from the work Floris van Doorn did.
+First we define the following,
+
+\begin{lstlisting}
+Inductive Results :=
+  | Open
+  | Closed
+  | Failure
+.
+Definition PropFSet := list PropF.
+Definition Numerator := PropFSet.
+Definition Denominator := sum (list PropFSet) Results.
+Definition Rule := prod Numerator Denominator.
+\end{lstlisting}
+
+Now given the notion of a rule, we need a method to instantiate these rules to
+work on an arbitrary set of formulae, PropFSet, to apply the rule in a tableau
+proof.
+
+\par
+
+The method to apply a rule is based on Jack Daniel Kelly's subthesis. We first
+define a partitioning procedure to generate all maps which match a schema to
+a set of formulas. This allows us to generate possible instantiations of a
+rule.
+
+\subsection{Partition Function}
+
+The partition function is defined as the following,
+
+\begin{lstlisting}
+Definition partitions schema Γ := map filterpi (partitions_help schema Γ nil).
+\end{lstlisting}
+
+Where partisions\_help is the following,
+
+\begin{lstlisting}
+Definition partitions_help (schema : PropFSet) : PropFSet -> partitionTuple -> list partitionTuple.
+  refine (Fix (length_wf PropF) (fun _ => PropFSet -> partitionTuple -> list partitionTuple)
+   (fun schema partitions_help_rec =>
+   (match schema as schema' return (schema = schema' -> PropFSet -> partitionTuple -> list partitionTuple) with
+    | nil => fun _ _ accπ => accπ::nil
+    | s::ss => fun H Γ accπ => let Π := partition_help s Γ accπ in
+        flat_map (fun π => partitions_help_rec (applyPartition ss π) _ Γ π) Π
+    end) eq_refl) schema).
+    rewrite H. assert (length (applyPartition ss π) <= length ss) by apply unchanging.
+    simpl. omega.
+    Defined.
+
+Definition partitions schema Γ := (partitions_help schema Γ nil).
+\end{lstlisting}
+
+The algorithm is the following,
+
+\begin{enumerate}
+\item For each formulas in schema we check if there is a formula in the set
+$\Gamma$ which matches it.
+\item The mapping from propositional variables in the schema to the formula in
+the set $\Gamma$ is recorded.
+\item If this can be done for each of the formula in the schema such that
+propositional variables are not mapped twice, (ie, $p \mapsto a$ and $p \mapsto
+b$), the list of maps are recorded.
+\item This is repeated for all possible combinations of mapping.
+\end{enumerate}
+
+This gives us all possible ways to instantiate the rules such that the rule can
+be applied to a tableau node.
+
+\subsection{Rule Application}
+
+To apply a rule we (currently) take the first such partition that allows us to
+apply the rule using the partition function (if one exists at all). With this
+we can instantiate the rule, take the set difference of the numerator of the
+rule and the tableau node we want to apply the rule to. Append that set to each
+part of the denominator of the rule, unless it is a result. In that case we are
+already done.
 
 \end{document}

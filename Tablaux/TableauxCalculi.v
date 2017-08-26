@@ -61,10 +61,14 @@ Inductive Results :=
 Definition Numerator := PropFSet.
 Definition Denominator := sum (list PropFSet) Results.
 
+Check inr Closed : Denominator.
+
 Definition Rule := prod Numerator Denominator.
 
 Definition getNumerator (rule : Rule) := fst rule.
 Definition getDenominator (rule : Rule) := snd rule.
+
+Definition TableauNode := sum PropFSet Results.
 
 (* Method to get propsitional variables *)
 Fixpoint getPropVar (prop : PropF) :=
@@ -182,11 +186,14 @@ Fixpoint extendPartition (π1 π2 : partitionTuple) :=
   match π2 with
   | nil => Some π1
   | x::xs => if inPartitionTuple x π1 then extendPartition π1 xs
-              else (if (EquivPropF (fst x) (snd x)) then extendPartition π1 xs else
-              (if usedVar (fst x) π1 then None else extendPartition (x::π1) xs))
+              else (if usedVar (fst x) π1 then (if (EquivPropF (fst x) (snd x))
+              then extendPartition π1 xs else None) else extendPartition (x::π1) xs)
   end.
 
+Compute usedVar (#"a") ((# "p", # "a" ∨ # "b")::nil).
 Compute extendPartition ((# "a", # "a")::nil) ((# "p", # "a" ∨ # "b")::nil).
+Compute extendPartition ((# "p", # "a" ∨ # "b")::nil) ((# "a", # "a")::nil).
+Compute extendPartition (nil) ((# "a", # "a")::nil).
 Check matchVar.
 
 Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : partitionTuple) :=
@@ -237,12 +244,67 @@ Fixpoint filterpi (π : partitionTuple) :=
   | x::xs => if EquivPropF (fst x) (snd x) then filterpi xs else x::(filterpi xs)
   end.
 
-Definition partitions schema Γ := map filterpi (partitions_help schema Γ nil).
+Definition partitions schema Γ := (partitions_help schema Γ nil).
+
+Fixpoint removeFromSet remove Γ :=
+  match Γ with
+  | nil => nil
+  | γ::γs => if EquivPropF γ remove then γs else γ::(removeFromSet remove γs)
+  end.
+
+Fixpoint removeMultSet Remove Γ :=
+  match Remove with
+  | nil => Γ
+  | r::rs => removeMultSet rs (removeFromSet r Γ)
+  end.
+
+Print Denominator.
+Print TableauNode.
+
+Fixpoint denoApply (π : partitionTuple) (d : Denominator) : list TableauNode :=
+  match d with
+  | inr s => (inr s) :: nil
+  | inl lst => let mapApply a b := applyPartition b a in
+               map inl (map (mapApply π) lst)
+  end.
+
+Check (app).
+
+Fixpoint tableauAppend (Γ : PropFSet) (T : list TableauNode) : list TableauNode :=
+  match T with
+  | nil => nil
+  | node::rest => match node with
+                  | inr res => inr res :: tableauAppend Γ rest
+                  | inl lst => inl (lst ++ Γ) :: tableauAppend Γ rest
+                  end
+  end.
+
+Print TableauNode.
+
+Fixpoint applyRule (rule : Rule) (T : TableauNode) : option (list TableauNode) :=
+  match T with
+  | inr res => Some ((inr res) :: nil)
+  | inl Γ => match (partitions (getNumerator rule) Γ) with
+             | nil => None
+             | π::πs => let inst := applyPartition (getNumerator rule) π in
+                        let X := removeMultSet inst Γ in
+                        Some (tableauAppend X (denoApply π (getDenominator rule)))
+             end
+  end.
+
+Definition PandNotPRule : Rule := (((# "p")::(¬(# "p"))::nil), ((inr Closed)):Denominator).
+Definition OrRule : Rule := (((# "p" ∨ # "q")::nil), (inl (((# "p")::nil)::((# "q")::nil)::nil))).
+Definition AndRule : Rule := (((# "p" ∨ # "q")::nil), (inl (((# "p")::(# "q")::nil)::nil))).
+
+Compute applyRule PandNotPRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∧ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule OrRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
 
 Compute (partitions ((# "p")::(¬(# "p"))::nil) (((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil))).
+Compute (partitions ((# "p") :: nil) ((# "p") :: nil)).
 
 Compute (extendPartition ((# "p", # "s") :: nil) ((# "s", ⊥)::nil) ).
 
-Check Fix.
+Definition 
 
 Recursive Extraction partitions.
