@@ -6,6 +6,12 @@ Definition PropVars : string.
 Axiom Varseq_dec : forall x y : PropVars, {x = y} + {x <> y}.
 *)
 
+Definition optionBind (A B : Type) (f : A -> option B) (x : option A) :=
+  match x with
+  | None => None
+  | Some v => (f v)
+  end.
+
 Inductive PropF : Type :=
  | Var : string -> PropF
  | Bot : PropF
@@ -52,9 +58,7 @@ Definition PropFSet : Type := list PropF.
 
 (* Possible Results after proof search *)
 Inductive Results :=
-  | Open
   | Closed
-  | Failure
 .
 
 (* Defining a tableau rule *)
@@ -317,6 +321,7 @@ Inductive Strategy :=
 Inductive DerTree :=
   | Unf : TableauNode -> DerTree
   | Der : TableauNode -> Rule -> list DerTree -> DerTree
+  | Clf : DerTree
   .
 
 Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list partitionTuple) : list (list TableauNode) :=
@@ -341,12 +346,34 @@ Fixpoint applyRuleN (rule : Rule) (T : TableauNode) : list (list TableauNode) :=
              end
   end.
 
+Print map.
+
+Definition errorMap := fun (A B : Type) (f : list A -> B) =>
+  fix errorMap (l : list (list A)) : list B :=
+    match l with
+    | nil => nil
+    | a :: t => match a with
+                | nil => errorMap t
+                | _ => f a :: errorMap t
+                end
+    end.
+
+Fixpoint closeMap (l : list TableauNode) :=
+  match l with
+  | nil => nil
+  | x::xs => match x with
+             | inr Closed => Clf :: closeMap xs
+             | _ => Unf x :: closeMap xs
+             end
+  end.
+
 Fixpoint applyRule (rule : Rule) (T : DerTree) : list DerTree :=
   match T with
   | Unf Γ => let llst := applyRuleN rule Γ in
-              map (fun l => (Der Γ rule (map Unf l))) llst
+              map (fun l => (Der Γ rule (closeMap l))) llst
   | Der Γ r derlist => let children := map (applyRule rule) derlist in
-              map (Der Γ r) children
+              errorMap _ _ (Der Γ r) children
+  | Clf => Clf :: nil
   end.
 
 Compute applyRule AndRule (Unf (inl ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil))).
@@ -364,13 +391,56 @@ Compute applyRule AndRule (Der
                    :: # "a" ∧ # "b" → ⊥
                       :: # "c" ∧ # "d" :: # "s" :: nil))
           :: nil)).
+(* Should return nil as no leaf can be used with or rule *)
+Compute applyRule OrRule (Der
+         (inl
+            (# "a" ∧ # "b" → ⊥
+             :: # "a" ∧ # "b"
+                :: # "c" ∧ # "d" :: # "s" :: nil))
+         (# "p" ∧ # "q" :: nil,
+         inl ((# "p" :: # "q" :: nil) :: nil))
+         (Unf
+            (inl
+               (# "a"
+                :: # "b"
+                   :: # "a" ∧ # "b" → ⊥
+                      :: # "c" ∧ # "d" :: # "s" :: nil))
+          :: nil)).
 Compute applyRule OrRule (Unf (inl ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil))).
 
-Fixpoint applyStrategy' (strat : Strategy) (Γ : DerTree) (steps : list DerTree) : list DerTree :=
-  match strat with
-  
+(*
+Definition addHistory := fun (steps : list DerTree) :=
+  fix addHistory (branches : list DerTree) :=
+  match branches with
+  | nil => nil
+  | x::xs => match x with
+             | nil => addHistory xs
+             | _ => (x :: steps
+*)
 
-Definition applyStrategy (strat : Strategy) (Γ : PropFSet) : DerTree :=
+Definition historyStack := list (list (prod DerTree Strategy)).
+
+Definition popHistory (history : historyStack) : option (prod (prod DerTree Strategy) historyStack) :=
+
+
+Fixpoint applyStrategy' (strat : Strategy) (Γ : DerTree) (history : historyStack) :=
+  match strat with
+  | Skip => Γ
+  | Fail => nil
+  | ApplyRule r => let next := applyRule r Γ in
+                   match next with
+                   | nil => None
+                   | x::xs => applyRule 
+                   end
+  | Sequence s1 s2 => let next1 := applyStrategy' s1 Γ in optionBind _ _ (applyStrategy' s2) next1
+  | _ => None
+  end.
+
+Definition applyStrategy (strat : Strategy) (Γ : PropFSet) : option DerTree :=
+  applyStrategy' strat (Unf (inl Γ)).
+
+Compute applyStrategy (ApplyRule AndRule) ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil).
+Compute applyStrategy (Sequence (ApplyRule AndRule) (ApplyRule AndRule)) ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil).
 
 Definition SystematicTableau 
 
