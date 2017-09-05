@@ -281,7 +281,7 @@ Fixpoint tableauAppend (Γ : PropFSet) (T : list TableauNode) : list TableauNode
 
 Print TableauNode.
 
-Fixpoint applyRule (rule : Rule) (T : TableauNode) : option (list TableauNode) :=
+Fixpoint applyRule' (rule : Rule) (T : TableauNode) : option (list TableauNode) :=
   match T with
   | inr res => Some ((inr res) :: nil)
   | inl Γ => match (partitions (getNumerator rule) Γ) with
@@ -292,19 +292,86 @@ Fixpoint applyRule (rule : Rule) (T : TableauNode) : option (list TableauNode) :
              end
   end.
 
-Definition PandNotPRule : Rule := (((# "p")::(¬(# "p"))::nil), ((inr Closed)):Denominator).
+Definition IdRule : Rule := (((# "p")::(¬(# "p"))::nil), ((inr Closed)):Denominator).
 Definition OrRule : Rule := (((# "p" ∨ # "q")::nil), (inl (((# "p")::nil)::((# "q")::nil)::nil))).
-Definition AndRule : Rule := (((# "p" ∨ # "q")::nil), (inl (((# "p")::(# "q")::nil)::nil))).
+Definition AndRule : Rule := (((# "p" ∧ # "q")::nil), (inl (((# "p")::(# "q")::nil)::nil))).
 
-Compute applyRule PandNotPRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
-Compute applyRule AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∧ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
-Compute applyRule OrRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule' IdRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule' AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∧ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule' OrRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
+Compute applyRule' AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
 
 Compute (partitions ((# "p")::(¬(# "p"))::nil) (((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil))).
 Compute (partitions ((# "p") :: nil) ((# "p") :: nil)).
-
 Compute (extendPartition ((# "p", # "s") :: nil) ((# "s", ⊥)::nil) ).
 
-Definition 
+Inductive Strategy :=
+  | ApplyRule : Rule -> Strategy
+  | Sequence : Strategy -> Strategy -> Strategy
+  | Alternation : Strategy -> Strategy -> Strategy
+  | Skip : Strategy
+  | Fail : Strategy
+  | Repeat : Strategy -> Strategy
+  .
 
-Recursive Extraction partitions.
+Inductive DerTree :=
+  | Unf : TableauNode -> DerTree
+  | Der : TableauNode -> Rule -> list DerTree -> DerTree
+  .
+
+Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list partitionTuple) : list (list TableauNode) :=
+  match π with
+  | nil => nil
+  | x::xs => let inst := applyPartition (getNumerator rule) x in
+                        let X := removeMultSet inst Γ in
+                        (tableauAppend X (denoApply x (getDenominator rule)))
+                          :: instantiateAllPartitions rule Γ xs
+  end
+.
+
+Compute instantiateAllPartitions AndRule ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil)
+  (partitions (getNumerator AndRule) ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil)).
+
+Fixpoint applyRuleN (rule : Rule) (T : TableauNode) : list (list TableauNode) :=
+  match T with
+  | inr res => ((inr res) :: nil) :: nil
+  | inl Γ => match (partitions (getNumerator rule) Γ) with
+             | nil => nil
+             | π => instantiateAllPartitions rule Γ π
+             end
+  end.
+
+Fixpoint applyRule (rule : Rule) (T : DerTree) : list DerTree :=
+  match T with
+  | Unf Γ => let llst := applyRuleN rule Γ in
+              map (fun l => (Der Γ rule (map Unf l))) llst
+  | Der Γ r derlist => let children := map (applyRule rule) derlist in
+              map (Der Γ r) children
+  end.
+
+Compute applyRule AndRule (Unf (inl ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil))).
+Compute applyRule AndRule (Der
+         (inl
+            (# "a" ∧ # "b" → ⊥
+             :: # "a" ∧ # "b"
+                :: # "c" ∧ # "d" :: # "s" :: nil))
+         (# "p" ∧ # "q" :: nil,
+         inl ((# "p" :: # "q" :: nil) :: nil))
+         (Unf
+            (inl
+               (# "a"
+                :: # "b"
+                   :: # "a" ∧ # "b" → ⊥
+                      :: # "c" ∧ # "d" :: # "s" :: nil))
+          :: nil)).
+Compute applyRule OrRule (Unf (inl ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil))).
+
+Fixpoint applyStrategy' (strat : Strategy) (Γ : DerTree) (steps : list DerTree) : list DerTree :=
+  match strat with
+  
+
+Definition applyStrategy (strat : Strategy) (Γ : PropFSet) : DerTree :=
+
+Definition SystematicTableau 
+
+Recursive Extraction applyRule.
