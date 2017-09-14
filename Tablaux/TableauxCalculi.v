@@ -62,6 +62,12 @@ Inductive Results :=
   | Closed
 .
 
+Theorem Results_eq_dec : forall (r1 r2 : Results), {r1=r2} + {r1<>r2}.
+Proof.
+  induction r1, r2.
+  left; trivial.
+Qed.
+
 (* Defining a tableau rule *)
 Definition Numerator := PropFSet.
 Definition Denominator := sum (list PropFSet) Results.
@@ -74,6 +80,96 @@ Definition getNumerator (rule : Rule) := fst rule.
 Definition getDenominator (rule : Rule) := snd rule.
 
 Definition TableauNode := sum PropFSet Results.
+
+Lemma propfDiscAnd1 : forall p: PropF, p ∧ p = p -> False.
+intros.
+  induction p; try discriminate H.
+  inversion H. rewrite H1 in H2. rewrite H1 in H2. rewrite H2 in H1.
+  auto.
+Qed.
+
+Lemma propfDiscAnd2 : forall p q: PropF, p ∧ q = p -> False.
+intros.
+  induction p; try discriminate H.
+  inversion H. rewrite H2 in *. rewrite H1 in IHp1.
+  apply IHp1. trivial.
+Qed.
+
+Print PropF_ind.
+
+Print PropF.
+
+Theorem PropF_eq_dec : forall (p q : PropF), {p = q} + {p <> q}.
+Proof.
+  induction p, q; try (right; intuition; discriminate H).
+  destruct (string_dec s s0). left. rewrite e; auto. right; intuition.
+  inversion H; auto. left; trivial.
+  destruct (IHp1 q1); destruct (IHp2 q2);
+  subst;
+  [(left; trivial) |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto].
+  destruct (IHp1 q1); destruct (IHp2 q2);
+  subst;
+  [(left; trivial) |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto].
+  destruct (IHp1 q1); destruct (IHp2 q2);
+  subst;
+  [(left; trivial) |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto |
+  right; subst; intuition; inversion H; auto].
+Qed.
+
+Theorem PropFSet_eq_dec : forall (p1 p2 : PropFSet), {p1 = p2} + {p1 <> p2}.
+Proof.
+  induction p1, p2.
+  left. trivial.
+  right. intuition; discriminate H.
+  right. intuition; discriminate H.
+  destruct (PropF_eq_dec a p); destruct (IHp1 p2); subst; auto;
+  right; intuition; inversion H; auto.
+Qed.
+
+Theorem ListPropFSet_eq_dec : forall (l1 l2 : list PropFSet), {l1=l2} + {l1<>l2}.
+Proof.
+  induction l1, l2.
+  left; trivial.
+  right; intuition; discriminate H.
+  right; intuition; discriminate H.
+  destruct (PropFSet_eq_dec a p); destruct (IHl1 l2); subst.
+  left; trivial.
+  right; intuition; inversion H; auto.
+  right; intuition; inversion H; auto.
+  right; intuition; inversion H; auto.
+Qed.
+
+Theorem Numerator_eq_dec : forall (n1 n2 : Numerator), {n1=n2} + {n1<>n2}.
+Proof.
+  unfold Numerator.
+  exact PropFSet_eq_dec.
+Qed.
+
+Theorem Denominator_eq_dec : forall (d1 d2 : Denominator), {d1=d2} + {d1<>d2}.
+Proof.
+  induction d1, d2.
+  destruct (ListPropFSet_eq_dec a l); subst.
+  left; trivial.
+  right; intuition; inversion H; auto.
+  right; intuition; discriminate H.
+  right; intuition; discriminate H.
+  left; destruct b, r; auto.
+Qed.
+
+Theorem Rule_eq_dec : forall (r1 r2 : Rule), {r1=r2} + {r1<>r2}.
+Proof.
+  induction r1, r2.
+  destruct (Numerator_eq_dec a n); destruct (Denominator_eq_dec b d); subst;
+  auto; right; intuition; inversion H; auto.
+Qed.
 
 (* Method to get propsitional variables *)
 Fixpoint getPropVar (prop : PropF) :=
@@ -1070,8 +1166,55 @@ Definition toBranchN (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
   exact (d x H0).
   Qed.
 
-Fixpoint applyRtoN (T : DerTree) (rule : CRule) (n : nat) :=
-  
+Print partitions.
+Print applyRuleD.
+
+Definition getNChild (T : DerTree) : nat -> option DerTree.
+  refine (Fix depthOrder_wf (fun _ => (nat -> option DerTree))
+  (fun T getNChild_rec =>
+  (match T as T' return (T=T' -> nat -> option DerTree) with
+  | Der _ _ branches => fun H n => (
+                        (match toBranchN' branches n nil as branchRes
+                        return (toBranchN' branches n nil = branchRes -> option DerTree) with
+                        | None => fun _ => None
+                        | Some (_, x, _, n') => fun _ => getNChild_rec x _ n'
+                        end) eq_refl)
+  | _ => fun _ _ => Some T
+  end) eq_refl) T).
+    subst.
+  assert (In x branches).
+  exact (branch_contains branches x l0 l n n' nil e).
+  pose (childLDepth branches p r).
+  exact (d x H).
+  Qed.
+
+Print partitions.
+Print getCRule.
+Print applyRuleN.
+Print instantiateAllPartitions.
+Print applyPartitionRuleD.
+Print optionSucMap.
+
+Definition updateLeaf (T : DerTree) : (DerTree -> DerTree) := fun _ => T.
+
+Definition applyRtoN (T : DerTree) (rule : CRule) (n : nat) :=
+  match getNChild T n with
+  | None => None
+  | Some child => match child with
+                  | Unf Γ => let r := getCRule rule in
+                             match partitions (getNumerator r) Γ with
+                             | nil => None
+                             | Π => match optionSucMap _ _ (applyPartitionRuleD r Γ) Π with
+                                    | None => None
+                                    | Some newNodes =>
+                                    Some (map (fun x => toBranchN T x n) (map updateLeaf newNodes))
+                                    end
+                             end
+                  | _ => None
+                  end
+  end.
+
+Compute applyRtoN (Unf ((#"a" ∧ #"b")::nil)) AndC 0.
 
 (*
 Fixpoint applyStratNB' (strat : StrategyC) (T : DerTree) :=
@@ -1270,6 +1413,7 @@ Fixpoint applyStrategy' (strat : Strategy) (Γ : DerTree) : option DerTree :=
                          end
   | _ => None
   end.
+ 
 
 Definition applyStrategy (strat : Strategy) (Γ : PropFSet) : option DerTree :=
   applyStrategy' (stratLeftAlign strat) (Unf (inl Γ)).
