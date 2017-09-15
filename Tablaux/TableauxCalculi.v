@@ -101,6 +101,10 @@ Print PropF.
 
 Theorem PropF_eq_dec : forall (p q : PropF), {p = q} + {p <> q}.
 Proof.
+  intros. decide equality.
+  apply string_dec.
+Defined.
+(*
   induction p, q; try (right; intuition; discriminate H).
   destruct (string_dec s s0). left. rewrite e; auto. right; intuition.
   inversion H; auto. left; trivial.
@@ -123,9 +127,14 @@ Proof.
   right; subst; intuition; inversion H; auto |
   right; subst; intuition; inversion H; auto].
 Qed.
+*)
 
 Theorem PropFSet_eq_dec : forall (p1 p2 : PropFSet), {p1 = p2} + {p1 <> p2}.
 Proof.
+  intros. decide equality.
+  apply PropF_eq_dec.
+Qed.
+(*
   induction p1, p2.
   left. trivial.
   right. intuition; discriminate H.
@@ -133,9 +142,14 @@ Proof.
   destruct (PropF_eq_dec a p); destruct (IHp1 p2); subst; auto;
   right; intuition; inversion H; auto.
 Qed.
+*)
 
 Theorem ListPropFSet_eq_dec : forall (l1 l2 : list PropFSet), {l1=l2} + {l1<>l2}.
 Proof.
+  intros. decide equality.
+  apply PropFSet_eq_dec.
+Qed.
+(*
   induction l1, l2.
   left; trivial.
   right; intuition; discriminate H.
@@ -146,12 +160,17 @@ Proof.
   right; intuition; inversion H; auto.
   right; intuition; inversion H; auto.
 Qed.
-
+*)
 Theorem Numerator_eq_dec : forall (n1 n2 : Numerator), {n1=n2} + {n1<>n2}.
 Proof.
+  intros. decide equality.
+  apply PropF_eq_dec.
+Qed.
+(*
   unfold Numerator.
   exact PropFSet_eq_dec.
 Qed.
+*)
 
 Theorem Denominator_eq_dec : forall (d1 d2 : Denominator), {d1=d2} + {d1<>d2}.
 Proof.
@@ -411,6 +430,48 @@ Inductive DerTree :=
   | Unf : PropFSet -> DerTree
   | Der : PropFSet -> Rule -> list DerTree -> DerTree
   .
+
+Fixpoint DerTree_recursion (PT : DerTree -> Type) (PL : list DerTree -> Type)
+  (f_Clf : PT Clf) (f_Unf : forall x, PT (Unf x)) (f_Der : forall x r l, PL l -> PT (Der x r l))
+  (g_nil : PL nil) (g_cons : forall x, PT x -> forall xs, PL xs -> PL (cons x xs)) 
+  (t : DerTree) : PT t.
+  destruct t; auto. 
+  (* The only hard case is Der *)
+  apply f_Der.
+  (* Luckily we can use regular list induction to help *)
+  induction l; auto.
+  apply g_cons; auto.
+  (* And since Coq knows this is a good recursive call, we're done *)
+  apply (DerTree_recursion PT PL); auto.
+  Defined.
+
+Theorem DerTree_eq_dec : forall (d1 d2 : DerTree), {d1=d2} + {d1 <> d2}.
+Proof.
+  induction d1 using DerTree_recursion with (PL := fun l1 => forall l2, {l1=l2} + {l1<>l2}).
+(* Clf *)
+  destruct d2; [left; auto | right; discriminate | right ; discriminate].
+(* Unf *)
+  destruct d2; [ right; discriminate 
+               | destruct (PropFSet_eq_dec x p); 
+                  [ left; subst; auto 
+                  | right; intuition; inversion H; auto]
+               | right ; discriminate].
+  destruct d2; [ right; discriminate 
+               | right; discriminate 
+               | ].
+(* DerTree *)
+  destruct (PropFSet_eq_dec x p) ; [ | right; intro NEQ; inversion NEQ; auto]. 
+  destruct (Rule_eq_dec r r0); [ | right; intro NEQ; inversion NEQ; auto].
+  destruct (IHd1 l0); [ | right; intro NEQ; inversion NEQ; auto]. 
+  left; subst; trivial. 
+(* No children *)
+  destruct l2; auto. right. intro NEQ; inversion NEQ.
+(* Some children *)
+  destruct l2. right. intro NEQ; inversion NEQ.
+  destruct (IHd1 d). subst. destruct (IHd0 l2).
+  subst. left. trivial. right. intro NEQ. inversion NEQ. auto.
+  right. intro NEQ; inversion NEQ; auto.
+Defined.
 
 Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list partitionTuple) : list (list TableauNode) :=
   match π with
@@ -1020,66 +1081,63 @@ Lemma complete_list_ind (A : Type) (f : forall (x y : A), {x=y} + {x<>y}) (P : l
  contradict n. trivial.
  Defined.
 
+Print depthOrder.
+
+Definition maxListDepthOrder (l1 l2 : list DerTree) := maxList (map depthDerTree l1) < maxList (map depthDerTree l2).
+Definition maxDepthOrder (t1 t2 : DerTree) := maxListDepthOrder (t1 :: nil) (t2 :: nil).
+
+Print maxList.
+
+Lemma maxListElement : forall l n, l <> nil -> maxList l = n -> In n l.
+Proof.
+intros.
+destruct (eq_nat_dec 0 n).
+rewrite <- e. induction l.
+contradict H; auto.
+assert (a = 0).
+rewrite <- e in *.
+simpl in H0.
+destruct (max_dec a (maxList l)).
+omega.
+pose (le_max_l a (maxList l)). omega.
+simpl. left; trivial.
+induction l.
+contradict H; auto.
+simpl.
+simpl in H0.
+destruct (max_dec a (maxList l)).
+left; omega.
+right. apply IHl.
+intuition. rewrite e in H0. rewrite H1 in H0.
+simpl in H0. auto.
+omega.
+Qed.
+
 Lemma depthOrder_wf : well_founded depthOrder.
 Proof.
-  unfold well_founded. destruct a; constructor.
-  intros. unfold depthOrder in H. simpl in H. omega.
-  intros. unfold depthOrder in H. simpl in H. omega.
-  induction l using (complete_list_ind DerTree _).
-  intros. red in H0. 
-  destruct y. simpl in H0.
-  constructor; intros; unfold depthOrder in H1; simpl in H1; omega.
-  constructor; intros; unfold depthOrder in H1; simpl in H1; omega.
-  destruct l.
-  simpl in H0. omega.
-  assert (forall y : DerTree, depthOrder y (Der p r l) -> Acc depthOrder y).
-  apply H. constructor. trivial.
-  
-  destruct (ge_dec (depthDerTree d) (maxList (map depthDerTree l))).
-  assert (max (depthDerTree d) (maxList (map depthDerTree l)) = depthDerTree d).
-  apply max_l. omega.
-  simpl in H0.
-  rewrite H2 in H0.
-  assert ((maxList (map depthDerTree l0)) < (depthDerTree d)) by omega.
-  apply H1.
-  simpl in H.
-  Admitted. (*
-  rewrite H0 in H.
-  constructor.
-  intros.
-  apply IHl.
-  
-  intros. destruct (depthDerTree (Der p0 r0 l0)
-  intros.
-  destruct y.
-  constructor; intros; unfold depthOrder in H1; simpl in H1; omega.
-  constructor; intros; unfold depthOrder in H1; simpl in H1; omega.
-  simpl in H.
-  assert (max (depthDerTree a) (maxList (map depthDerTree l)) = depthDerTree a).
-  apply max_l. omega.
-  rewrite H1 in H.
-  inversion H0. admit. apply IHl.
-  red.
-  
-  simpl. omega.
-  
-  assert ((maxList (map depthDerTree l0)) <
-    (Nat.max (depthDerTree a) (maxList (map depthDerTree l)))) by omega.
-  rewrite H2 in H.
+  unfold well_founded.
+  induction a using DerTree_recursion with (PL := fun branch => forall b, depthDerTree b < S (maxList (map depthDerTree branch)) -> Acc depthOrder b).
+  constructor; intros; red in H; red in H; simpl in H; omega.
+  constructor; intros; red in H; red in H; simpl in H; omega.
+  constructor. intros.
+  red in H. simpl in H.
+  exact (IHa y H).
 
-  apply IHl.
-  red.
-  simpl.
-  simpl in H.
-  assert (Nat.max (depthDerTree a) (maxList (map depthDerTree l)) = maxList (map depthDerTree l)).
-  apply max_r. omega.
-  rewrite H0 in H. exact H.
-
-  
-  constructor. intros. apply H.
-  induction l. constructor. admit.
-  constructor.
-  inversion IHl. subst.*)
+  intros. simpl in H. induction b.
+  constructor; intros; red in H0; red in H0; simpl in H0; omega.
+  constructor; intros; red in H0; red in H0; simpl in H0; omega.
+  simpl in H; contradict H; omega.
+  intros. simpl in H.
+  destruct (max_dec (depthDerTree a) (maxList (map depthDerTree xs)));
+  rewrite e in H.
+  destruct (eq_nat_dec (depthDerTree b) (depthDerTree a)).
+  constructor. intros.
+  apply IHa. red in H0. rewrite e0 in H0.
+  red; exact H0.
+  assert ((depthDerTree b) < (depthDerTree a)) by omega.
+  apply IHa. red; exact H0.
+  exact (IHa0 b H).
+Qed.
 
 Print depthOrder.
 Print toBranchN'.
