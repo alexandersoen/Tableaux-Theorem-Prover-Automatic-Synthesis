@@ -66,7 +66,7 @@ Theorem Results_eq_dec : forall (r1 r2 : Results), {r1=r2} + {r1<>r2}.
 Proof.
   induction r1, r2.
   left; trivial.
-Qed.
+Defined.
 
 (* Defining a tableau rule *)
 Definition Numerator := PropFSet.
@@ -133,7 +133,7 @@ Theorem PropFSet_eq_dec : forall (p1 p2 : PropFSet), {p1 = p2} + {p1 <> p2}.
 Proof.
   intros. decide equality.
   apply PropF_eq_dec.
-Qed.
+Defined.
 (*
   induction p1, p2.
   left. trivial.
@@ -148,7 +148,7 @@ Theorem ListPropFSet_eq_dec : forall (l1 l2 : list PropFSet), {l1=l2} + {l1<>l2}
 Proof.
   intros. decide equality.
   apply PropFSet_eq_dec.
-Qed.
+Defined.
 (*
   induction l1, l2.
   left; trivial.
@@ -165,7 +165,7 @@ Theorem Numerator_eq_dec : forall (n1 n2 : Numerator), {n1=n2} + {n1<>n2}.
 Proof.
   intros. decide equality.
   apply PropF_eq_dec.
-Qed.
+Defined.
 (*
   unfold Numerator.
   exact PropFSet_eq_dec.
@@ -181,14 +181,14 @@ Proof.
   right; intuition; discriminate H.
   right; intuition; discriminate H.
   left; destruct b, r; auto.
-Qed.
+Defined.
 
 Theorem Rule_eq_dec : forall (r1 r2 : Rule), {r1=r2} + {r1<>r2}.
 Proof.
   induction r1, r2.
   destruct (Numerator_eq_dec a n); destruct (Denominator_eq_dec b d); subst;
   auto; right; intuition; inversion H; auto.
-Qed.
+Defined.
 
 (* Method to get propsitional variables *)
 Fixpoint getPropVar (prop : PropF) :=
@@ -520,6 +520,7 @@ Definition errorMap := fun (A B : Type) (f : list A -> B) =>
                 end
     end.
 
+(*
 Fixpoint closeMap (l : list TableauNode) :=
   match l with
   | nil => nil
@@ -528,7 +529,7 @@ Fixpoint closeMap (l : list TableauNode) :=
              | _ => Unf x :: closeMap xs
              end
   end.
-
+*)
 (*
 Fixpoint applyRule (rule : Rule) (T : DerTree) : list DerTree :=
   match T with
@@ -971,18 +972,45 @@ Definition CRules := IdC::AndC::OrC::nil.
 
 Fixpoint getLeaves (T : DerTree) :=
   match T with
-  | Der _ _ branches => flat_map getLeaves branches
+  | Der _ _ branches => match branches with
+                        | nil => nil
+                        | _ => flat_map getLeaves branches
+                        end
   | Clf => nil
-  | _ => T :: nil
+  | Unf _ => T :: nil
   end.
 
+(*
 Fixpoint toBranchN' (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
   match Ts with
   | nil => None
-  | x::xs => let xchild := (length (getLeaves x)) in
-                 if le_dec xchild n then Some (acc, x, xs, n) else toBranchN' xs (minus n xchild) (x::acc)
-                 end.
+  | x::xs => 
+                (let xchild := (length (getLeaves x)) in
+                 if le_dec xchild n then Some (acc, x, xs, n) else toBranchN' xs (minus n xchild) (x::acc))
+  end. *)
 
+Compute (getLeaves (Der nil (getCRule AndC) (Clf::(Unf (⊥::nil))::nil))).
+Compute (getLeaves (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
+            (# "p" ∧ # "q" :: nil,
+            inl ((# "p" :: # "q" :: nil) :: nil))
+            (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil))).
+
+Fixpoint toBranchN' (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
+  if gt_dec n (length Ts) then None else (
+  if eq_nat_dec n 0 then None else (
+  match Ts with
+  | nil => None
+  | x::xs => match x with
+             | Clf => toBranchN' xs n (acc ++ (x::nil))
+             | _ => let xchild := (length (getLeaves x)) in
+                    if le_dec n xchild then Some (acc, x, xs, n)
+                    else toBranchN' xs (minus n xchild) (acc ++ (x::nil))
+             end
+  end)).
+
+Compute (toBranchN' (Clf::(Unf (⊥::nil))::nil) 0 nil).
+Compute (toBranchN' (
+            (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil)) 2 nil).
 Print DerTree.
 Print maxList.
 Print map.
@@ -1013,56 +1041,6 @@ Fixpoint sizeDerTree (T : DerTree) :=
   | Clf => 0
   end.
 
-Inductive dertree_rec (P : DerTree -> Type) : DerTree -> Type :=
-  | unf_rec : forall x, P (Unf x) -> dertree_rec P (Unf x)
-  | clf_rec : P Clf -> dertree_rec P Clf
-  | der_rec : forall x y, P (Der x y nil) -> dertree_rec P (Der x y nil)
-  | der_rec_cons : forall x y z zs, P z -> P (Der x y zs) -> P (Der x y (z :: zs)) -> dertree_rec P (Der x y (z :: zs)).
-
-Check DerTree_rect.
-
-Definition dertree_recursion : forall (P : DerTree -> Type),
-  P Clf ->
-  (forall x, P (Unf x)) ->
-  (forall x y z, (forall a, In a z -> P a) -> P (Der x y z)) -> 
-  (forall x, P x). intros. inversion x. admit. admit.
-  Admitted.
-
-Inductive DerTree' :=
-  | Clf' : DerTree'
-  | Unf' : PropFSet -> DerTree'
-  | Der' : PropFSet -> Rule -> Branch -> DerTree'
-  with Branch :=
-  | single : DerTree' -> Branch
-  | cons : DerTree' -> Branch -> Branch.
-
-Scheme dertree_ind2 := Induction for DerTree' Sort Prop
-with branch_ind2 := Induction for Branch Sort Prop.
-
-Check dertree_ind2.
-
-Function tree_depth (t:DerTree') : nat :=
-        match t with
-        | Clf' => 0
-        | Unf' _ => 0
-        | Der' _ _ f => S (branch_depth f)
-        end
-       with branch_depth (f:Branch) : nat :=
-        match f with
-        | single x => 1 + tree_depth x
-        | cons t f' => max (tree_depth t) (branch_depth f')
-        end.
-
-Definition depthOrderTree (t1 t2 : DerTree') :=
-  tree_depth t1 < tree_depth t2.
-
-Definition depthOrderBranch (t1 t2 : Branch) :=
-  branch_depth t1 < branch_depth t2.
-
-Lemma depthOrderTree_wf : well_founded depthOrderTree.
-unfold well_founded.
-Admitted.
-
 Inductive tail_of (A : Type) : list A -> list A -> Prop :=
   | nil_tail : forall (x : A) (xs : list A), tail_of A (x::xs) nil
   | current_tail : forall x xs ys, xs = ys -> tail_of A (x::xs) ys
@@ -1090,31 +1068,30 @@ Print maxList.
 
 Lemma maxListElement : forall l n, l <> nil -> maxList l = n -> In n l.
 Proof.
-intros.
-destruct (eq_nat_dec 0 n).
-rewrite <- e. induction l.
-contradict H; auto.
-assert (a = 0).
-rewrite <- e in *.
-simpl in H0.
-destruct (max_dec a (maxList l)).
-omega.
-pose (le_max_l a (maxList l)). omega.
-simpl. left; trivial.
-induction l.
-contradict H; auto.
-simpl.
-simpl in H0.
-destruct (max_dec a (maxList l)).
-left; omega.
-right. apply IHl.
-intuition. rewrite e in H0. rewrite H1 in H0.
-simpl in H0. auto.
-omega.
+  intros.
+  destruct (eq_nat_dec 0 n).
+  rewrite <- e. induction l.
+  contradict H; auto.
+  assert (a = 0).
+  rewrite <- e in *.
+  simpl in H0.
+  destruct (max_dec a (maxList l)).
+  omega.
+  pose (le_max_l a (maxList l)). omega.
+  simpl. left; trivial.
+  induction l.
+  contradict H; auto.
+  simpl.
+  simpl in H0.
+  destruct (max_dec a (maxList l)).
+  left; omega.
+  right. apply IHl.
+  intuition. rewrite e in H0. rewrite H1 in H0.
+  simpl in H0. auto.
+  omega.
 Qed.
 
 Lemma depthOrder_wf : well_founded depthOrder.
-Proof.
   unfold well_founded.
   induction a using DerTree_recursion with (PL := fun branch => forall b, depthDerTree b < S (maxList (map depthDerTree branch)) -> Acc depthOrder b).
   constructor; intros; red in H; red in H; simpl in H; omega.
@@ -1137,7 +1114,7 @@ Proof.
   assert ((depthDerTree b) < (depthDerTree a)) by omega.
   apply IHa. red; exact H0.
   exact (IHa0 b H).
-Qed.
+Defined.
 
 Print depthOrder.
 Print toBranchN'.
@@ -1148,15 +1125,41 @@ Definition toBranchNfix (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
   | res => toBranchN' res n acc
   end.
 
-Lemma toBranchNFixeq : forall Ts n acc, toBranchN' Ts n acc = toBranchNfix Ts n acc.
-intros. induction Ts. simpl. trivial. simpl. trivial.
-Qed.
-
 Check Fix_eq.
 (*Fix_Eq*)
 
-Lemma branch_contains : forall 
-  branches x acc xs n n' foo, toBranchN' branches n foo = Some (acc, x, xs, n') -> In x branches.
+
+Lemma toBranchZero : forall branches acc, toBranchN' branches 0 acc = None.
+Proof.
+  induction branches.
+  intuition.
+  simpl. intros. trivial.
+Qed.
+
+Lemma branch_contains : forall branches x acc xs n n' foo, toBranchN' branches n foo = Some (acc, x, xs, n') -> In x branches.
+Proof.
+  induction branches. intros. inversion H.
+  induction n; simpl in H1; discriminate H1.
+  intros. inversion H.
+  destruct (gt_dec n (S (length branches))).
+  discriminate H1.
+  simpl.
+  destruct a;
+  destruct (eq_nat_dec n 0); try discriminate H1.
+  right. apply (IHbranches x acc xs n n' (foo ++ Clf :: nil)). auto.
+  simpl in H1. destruct (le_dec n 1).
+  inversion H1. left. trivial.
+  right.
+  apply (IHbranches x acc xs (n - 1) n' (foo ++ (Unf p) :: nil)). auto.
+  destruct (le_dec n (length (getLeaves (Der p r l)))).
+  inversion H1; left; trivial.
+  right.
+  apply (IHbranches x acc xs (n - length (getLeaves (Der p r l))) n' (foo ++ Der p r l :: nil)). auto.
+Qed.
+
+(*
+Lemma branch_contains : forall branches x acc xs n n' foo, toBranchN' branches n foo = Some (acc, x, xs, n') -> In x branches.
+Proof.
   induction branches. intros. inversion H.
   intros.
   simpl in H.
@@ -1164,9 +1167,12 @@ Lemma branch_contains : forall
   inversion H; simpl; auto.
   simpl. right.
   apply (IHbranches x acc xs (n - length (getLeaves a)) n' (a :: foo)).
-  auto. Qed.
+  auto.
+Qed.
+*)
 
 Lemma maxAssoc : forall x y z, max x (max y z) = max (max x y) z.
+Proof.
   intros.
   destruct (le_ge_dec x y) as [a|a];
   destruct (le_ge_dec y z) as [b|b];
@@ -1175,14 +1181,15 @@ Lemma maxAssoc : forall x y z, max x (max y z) = max (max x y) z.
   ((pose (Hb := max_r _ _ b); rewrite Hb) || (pose (Hb := max_l _ _ b); rewrite Hb));
   ((pose (Hc := max_r _ _ c); rewrite Hc) || (pose (Hc := max_l _ _ c); try rewrite Hc));
   repeat (rewrite Ha || rewrite Hb || rewrite Hc); omega.
-  Qed.
+Qed.
 
 Lemma maxListApp : forall xs ys, maxList (xs ++ ys) = max (maxList xs) (maxList ys).
+Proof.
   intros. induction xs.
   simpl. trivial.
   intros. simpl. rewrite IHxs.
   exact (maxAssoc _ _ _).
-  Qed.
+Qed.
 
 Lemma childLDepth : forall branches Γ r,
   (forall b, In b branches -> depthOrder b (Der Γ r branches)).
@@ -1206,6 +1213,25 @@ Proof.
   rewrite (max_comm _ _). rewrite Hb. omega.
 Qed.
 
+
+Definition testBranch (T : DerTree) : (DerTree -> DerTree) -> DerTree.
+  refine (Fix depthOrder_wf (fun _ => (DerTree -> DerTree) -> DerTree)
+  (fun T testBranch_rec  =>
+  (match T as T' return (T = T' -> (DerTree -> DerTree) -> DerTree) with
+  | Der Γ r (x::xs) => (fun _ f => testBranch_rec x _ f)
+  | _ => (fun _ f => f T)
+  end) eq_refl) T).
+  subst.
+  red; simpl.
+  destruct (max_dec (depthDerTree x) (maxList (map depthDerTree xs))).
+  rewrite e. omega.
+  pose (le_max_l (depthDerTree x) (maxList (map depthDerTree xs))).
+  rewrite e in *. omega.
+  Defined.
+
+Compute (testBranch Clf (fun _ => Clf)).
+
+
 Definition toBranchN (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
   refine (Fix depthOrder_wf (fun _ => (DerTree -> DerTree) -> nat -> DerTree)
   (fun T toBranchN_rec  =>
@@ -1222,7 +1248,9 @@ Definition toBranchN (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
   exact (branch_contains branches x acc xs n n' nil H).
   pose (childLDepth branches Γ r).
   exact (d x H0).
-  Qed.
+  Defined.
+
+Compute (toBranchN Clf (fun _ => Clf) 1).
 
 Print partitions.
 Print applyRuleD.
@@ -1237,14 +1265,17 @@ Definition getNChild (T : DerTree) : nat -> option DerTree.
                         | None => fun _ => None
                         | Some (_, x, _, n') => fun _ => getNChild_rec x _ n'
                         end) eq_refl)
-  | _ => fun _ _ => Some T
+  | _ => fun _ n => if eq_nat_dec n 0 then None else Some T
   end) eq_refl) T).
     subst.
   assert (In x branches).
   exact (branch_contains branches x l0 l n n' nil e).
   pose (childLDepth branches p r).
   exact (d x H).
-  Qed.
+  Defined.
+
+Check getNChild.
+Compute (getNChild (Unf (⊥::nil)) 1).
 
 Print partitions.
 Print getCRule.
@@ -1272,7 +1303,13 @@ Definition applyRtoN (T : DerTree) (rule : CRule) (n : nat) :=
                   end
   end.
 
-Compute applyRtoN (Unf ((#"a" ∧ #"b")::nil)) AndC 0.
+Compute applyRtoN (Unf ((#"a" ∧ #"b")::(#"a" ∧ #"a")::nil)) AndC 1.
+Compute applyRtoN (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
+            (# "p" ∧ # "q" :: nil,
+            inl ((# "p" :: # "q" :: nil) :: nil))
+            (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil)) AndC 1.
+
+Recursive Extraction applyRtoN.
 
 (*
 Fixpoint applyStratNB' (strat : StrategyC) (T : DerTree) :=
