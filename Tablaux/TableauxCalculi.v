@@ -216,10 +216,10 @@ Fixpoint isInstanceOf (formula : PropF) (scheme : PropF) :=
   | (_, _) => false
   end.
 
-Definition partitionTuple := list (PropF * PropF).
+Definition Partition := list (PropF * PropF).
 
 (* Fix with fail monad or something ... *)
-Fixpoint matchVarHelp (scheme : PropF) (γ : PropF) : partitionTuple :=
+Fixpoint matchVarHelp (scheme : PropF) (γ : PropF) : Partition :=
   match (scheme, γ) with
   | (# pv, x) => (# pv, x)::nil
   | (⊥, ⊥) => nil
@@ -237,7 +237,7 @@ Recursive Extraction matchVar.
 
 Compute (matchVar (# "p" → # "r") (⊥ → (# "q"))).
 
-Fixpoint getSetVars (π : partitionTuple) : PropFSet :=
+Fixpoint getSetVars (π : Partition) : PropFSet :=
   match π with
   | nil => nil
   | x::xs => (snd x) :: getSetVars xs
@@ -245,14 +245,14 @@ Fixpoint getSetVars (π : partitionTuple) : PropFSet :=
 
 Compute getSetVars ((# "p", ⊥) :: (# "r", # "q") :: nil).
 
-Fixpoint lookupPartition (γ : PropF) (π : partitionTuple) :=
+Fixpoint lookupPartition (γ : PropF) (π : Partition) :=
   match π with
   | nil => None
   | (v1, v2)::xs => if EquivPropF γ v1 then Some v2
                 else lookupPartition γ xs
   end.
 
-Fixpoint applyPartitionPropF (γ : PropF) (π : partitionTuple) :=
+Fixpoint applyPartitionPropF (γ : PropF) (π : Partition) :=
   match lookupPartition γ π with
   | None => 
     match γ with
@@ -265,7 +265,7 @@ Fixpoint applyPartitionPropF (γ : PropF) (π : partitionTuple) :=
   | Some x => x
   end.
 
-Fixpoint applyPartition (Γ : PropFSet) (π : partitionTuple) :=
+Fixpoint applyPartition (Γ : PropFSet) (π : Partition) :=
   match Γ with
   | nil => nil
   | x::xs => (applyPartitionPropF x π) :: (applyPartition xs π)
@@ -289,20 +289,20 @@ Fixpoint option_fold (A : Type) (B : Type)
     | x::xs => option_bind B B (option_fold A B f z xs) (flip A B (option B) f x)
     end.
 
-Fixpoint inPartitionTuple p (π : partitionTuple) :=
+Fixpoint inPartitionTuple p (π : Partition) :=
   match π with
   | nil => false
   | x::xs => if andb (EquivPropF (fst x) (fst p)) (EquivPropF (snd x) (snd p))
               then true else inPartitionTuple p xs
   end.
 
-Fixpoint usedVar (γ : PropF) (π : partitionTuple) :=
+Fixpoint usedVar (γ : PropF) (π : Partition) :=
   match π with
   | nil => false
   | x::xs => if (EquivPropV γ (snd x)) then true else usedVar γ xs
   end.
 
-Fixpoint extendPartition (π1 π2 : partitionTuple) :=
+Fixpoint extendPartition (π1 π2 : Partition) :=
   match π2 with
   | nil => Some π1
   | x::xs => if inPartitionTuple x π1 then extendPartition π1 xs
@@ -316,7 +316,7 @@ Compute extendPartition ((# "p", # "a" ∨ # "b")::nil) ((# "a", # "a")::nil).
 Compute extendPartition (nil) ((# "a", # "a")::nil).
 Check matchVar.
 
-Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : partitionTuple) :=
+Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : Partition) :=
   match Γ with
   | nil => nil
   | γ::γs =>
@@ -332,8 +332,10 @@ Fixpoint partition_help (scheme : PropF) (Γ : PropFSet) (π : partitionTuple) :
 
 Check flat_map.
 
-Lemma length_wf : forall A, well_founded (fun (xs : list A) ys => length xs < length ys).
-intros. unfold well_founded. induction a.
+Definition lengthOrder (A : Type) (xs ys : list A) := length xs < length ys.
+
+Lemma lengthOrder_wf : forall A, well_founded (lengthOrder A).
+intros. unfold lengthOrder; unfold well_founded. induction a.
 constructor. intros. simpl in H. omega. constructor.
 intros. destruct (eq_nat_dec (length y) (length a0)).
 constructor. intros. apply IHa. rewrite <- e. exact H0.
@@ -346,25 +348,25 @@ Proof.
   simpl in *. intuition.
 Qed.
 
-Definition partitions_help (schema : PropFSet) : PropFSet -> partitionTuple -> list partitionTuple.
-  refine (Fix (length_wf PropF) (fun _ => PropFSet -> partitionTuple -> list partitionTuple)
-   (fun schema partitions_help_rec =>
-   (match schema as schema' return (schema = schema' -> PropFSet -> partitionTuple -> list partitionTuple) with
+Definition getPartitions_help (schema : PropFSet) : PropFSet -> Partition -> list Partition.
+  refine (Fix (lengthOrder_wf PropF) (fun _ => PropFSet -> Partition -> list Partition)
+   (fun schema getPartitions_help_rec =>
+   (match schema as schema' return (schema = schema' -> PropFSet -> Partition -> list Partition) with
     | nil => fun _ _ accπ => accπ::nil
     | s::ss => fun H Γ accπ => let Π := partition_help s Γ accπ in
-        flat_map (fun π => partitions_help_rec (applyPartition ss π) _ Γ π) Π
+        flat_map (fun π => getPartitions_help_rec (applyPartition ss π) _ Γ π) Π
     end) eq_refl) schema).
     rewrite H. assert (length (applyPartition ss π) <= length ss) by apply unchanging.
-    simpl. omega.
+    unfold lengthOrder; simpl. omega.
     Defined.
 
-Fixpoint filterpi (π : partitionTuple) :=
+Fixpoint filterpi (π : Partition) :=
   match π with
   | nil => nil
   | x::xs => if EquivPropF (fst x) (snd x) then filterpi xs else x::(filterpi xs)
   end.
 
-Definition partitions schema Γ := (partitions_help schema Γ nil).
+Definition getPartitions schema Γ := (getPartitions_help schema Γ nil).
 
 Fixpoint removeFromSet remove Γ :=
   match Γ with
@@ -381,7 +383,7 @@ Fixpoint removeMultSet Remove Γ :=
 Print Denominator.
 Print TableauNode.
 
-Fixpoint denoApply (π : partitionTuple) (d : Denominator) : list TableauNode :=
+Fixpoint denoApply (π : Partition) (d : Denominator) : list TableauNode :=
   match d with
   | inr s => (inr s) :: nil
   | inl lst => let mapApply a b := applyPartition b a in
@@ -404,7 +406,7 @@ Print TableauNode.
 Fixpoint applyRule' (rule : Rule) (T : TableauNode) : option (list TableauNode) :=
   match T with
   | inr res => Some ((inr res) :: nil)
-  | inl Γ => match (partitions (getNumerator rule) Γ) with
+  | inl Γ => match (getPartitions (getNumerator rule) Γ) with
              | nil => None
              | π::πs => let inst := applyPartition (getNumerator rule) π in
                         let X := removeMultSet inst Γ in
@@ -421,8 +423,8 @@ Compute applyRule' AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∧ #"b")::(#"c" ∨
 Compute applyRule' OrRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
 Compute applyRule' AndRule (inl ((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil)).
 
-Compute (partitions ((# "p")::(¬(# "p"))::nil) (((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil))).
-Compute (partitions ((# "p") :: nil) ((# "p") :: nil)).
+Compute (getPartitions ((# "p")::(¬(# "p"))::nil) (((¬(#"a" ∨ #"b"))::(#"a" ∨ #"b")::(#"c" ∨ #"d")::(#"s")::nil))).
+Compute (getPartitions ((# "p") :: nil) ((# "p") :: nil)).
 Compute (extendPartition ((# "p", # "s") :: nil) ((# "s", ⊥)::nil) ).
 
 Inductive DerTree :=
@@ -473,7 +475,7 @@ Proof.
   right. intro NEQ; inversion NEQ; auto.
 Defined.
 
-Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list partitionTuple) : list (list TableauNode) :=
+Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list Partition) : list (list TableauNode) :=
   match π with
   | nil => nil
   | x::xs => let inst := applyPartition (getNumerator rule) x in
@@ -484,13 +486,13 @@ Fixpoint instantiateAllPartitions (rule : Rule) (Γ : PropFSet) (π : list parti
 .
 
 Compute instantiateAllPartitions AndRule ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil)
-  (partitions (getNumerator AndRule) ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil)).
+  (getPartitions (getNumerator AndRule) ((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil)).
 
 (*
 Fixpoint applyRule' (rule : Rule) (T : TableauNode) : option (list TableauNode) :=
   match T with
   | inr res => Some ((inr res) :: nil)
-  | inl Γ => match (partitions (getNumerator rule) Γ) with
+  | inl Γ => match (getPartitions (getNumerator rule) Γ) with
              | nil => None
              | π::πs => let inst := applyPartition (getNumerator rule) π in
                         let X := removeMultSet inst Γ in
@@ -502,7 +504,7 @@ Fixpoint applyRule' (rule : Rule) (T : TableauNode) : option (list TableauNode) 
 Fixpoint applyRuleN (rule : Rule) (T : TableauNode) : list (list TableauNode) :=
   match T with
   | inr res => ((inr res) :: nil) :: nil
-  | inl Γ => match (partitions (getNumerator rule) Γ) with
+  | inl Γ => match (getPartitions (getNumerator rule) Γ) with
              | nil => nil
              | π => instantiateAllPartitions rule Γ π
              end
@@ -623,17 +625,23 @@ Fixpoint derTreeAppend (rule : Rule) (Γ : PropFSet) (branches : list TableauNod
   end.
 
 Print tableauAppend.
+Print Denominator.
 
-Definition applyPartitionRuleD (rule : Rule) (Γ : PropFSet) (π : partitionTuple) :=
+Definition applyPartitionRuleD (rule : Rule) (Γ : PropFSet) (π : Partition) :=
   let inst := applyPartition (getNumerator rule) π in
   let X := removeMultSet inst Γ in
   match π with
   | nil => None
-  | _ => derTreeAppend rule Γ (tableauAppend X (denoApply π (getDenominator rule))) nil
+  | _ => match (getDenominator rule) with
+         | inr res => Some Clf
+         | res => derTreeAppend rule Γ (tableauAppend X (denoApply π res)) nil
+         end
   end.
 
 Print DerTree.
 Compute (applyPartitionRuleD AndRule (# "p"::nil) nil).
+Compute (applyPartition (getNumerator IdRule) nil).
+Compute (applyPartitionRuleD IdRule (# "p" :: ¬ # "p" :: nil) nil).
 
 Check applyPartitionRuleD.
 
@@ -664,13 +672,15 @@ Definition optionSucMap (A B : Type) f xs := optionSucMap' A B f xs None.
 Fixpoint applyRuleD (rule : Rule) (T : DerTree) : option (list (DerTree)) :=
   match T with
   | Clf => Some (Clf :: nil)
-  | Unf Γ => match (partitions (getNumerator rule) Γ) with
+  | Unf Γ => match (getPartitions (getNumerator rule) Γ) with
              | nil => None
              | Π => optionSucMap _ _ (applyPartitionRuleD rule Γ) Π
              end
   | Der Γ r lst => None
   end.
 
+Compute (getPartitions (getNumerator IdRule) (¬ # "a" :: # "a" :: nil)).
+Compute (applyRuleD IdRule (Unf (# "a" :: ¬ # "a" :: nil))).
 Compute applyRuleD AndRule (Unf (((¬(#"a" ∧ #"b"))::(#"a" ∧ #"b")::(#"c" ∧ #"d")::(#"s")::nil))).
 
 Print DerTree.
@@ -707,6 +717,7 @@ Fixpoint stratLeftAlign (strat : StrategyC) : StrategyC :=
   | other => other
   end.
 
+(*
 Fixpoint connectivesProp (F : PropF) :=
   match F with
   | # pv => 0
@@ -721,15 +732,14 @@ Fixpoint connectivesSet (Γ : PropFSet) :=
   | nil => 0
   | x::xs => connectivesProp x + connectivesSet xs
   end.
-
+*)
 Fixpoint maxList (lst : list nat) :=
   match lst with
   | nil => 0
   | x::xs => max x (maxList xs)
   end.
 
-Check connectivesSet.
-
+(*
 (* Define the relation as the maximum of leaves *)
 Fixpoint countConnectivesDerTree (T : DerTree) :=
   match T with
@@ -752,6 +762,7 @@ Definition countFirstConnectives (Tlist : option (list DerTree)) :=
                 | x::_ => countConnectivesDerTree x
                 end
   end.
+*)
 
 Print applyRuleD.
 
@@ -761,17 +772,18 @@ Fixpoint applyRuleDFirst (rule : Rule) (T : DerTree) :=
   | _ => None
   end.
 
+(*
 Lemma cRelDec : forall (r : CRule) (T : DerTree),
   countOptionConnectivesDer (Some T) > countOptionConnectivesDer (applyRuleDFirst (getCRule r) T).
 Proof.
   (*
   intros. induction T; induction r; simpl in *.
-    case (partitions (# "p" :: ¬ # "p" :: nil) p).
+    case (getPartitions (# "p" :: ¬ # "p" :: nil) p).
     simpl. apply connectivesSetNonZero.
     intros.
      unfold optionSucMap. simpl.
     case p0; simpl. 
-    case (optionSucMap' partitionTuple DerTree
+    case (optionSucMap' Partition DerTree
       (applyPartitionRuleD
          (# "p" :: ¬ # "p" :: nil, inr Closed) p) l).
     intros. induction l0; simpl; intuition.
@@ -783,6 +795,7 @@ Proof.
   Admitted.
 Print DerTree.
 Print optionCons.
+*)
 
 Fixpoint optionMap (A B : Type) (f : A -> option B) (lstA : list A) :=
   match lstA with
@@ -812,6 +825,7 @@ Qed.
 
 Check well_founded.
 
+(*
 Lemma connectivesProp_wf : well_founded (fun (p : PropF) q => connectivesProp p < connectivesProp q).
 unfold well_founded.
 induction a;
@@ -833,8 +847,9 @@ rewrite e0 in e.
 apply IHa2. rewrite e in H0. exact H0.
 simpl in *.
 apply IHa1. *)
-Admitted.
+Admitted.*)
 
+(*
 Lemma connectivesSet_wf : well_founded (fun (Γ : PropFSet) Δ => connectivesSet Γ < connectivesSet Δ).
 unfold well_founded. induction a.
 constructor. intros. simpl in H. omega.
@@ -844,28 +859,9 @@ constructor; intros. apply IHa. rewrite e in H0. exact H0.
 apply IHa. simpl in *.
 induction a; simpl in *; try (assumption).
 Admitted.
-
-Lemma rel_wfzzz : well_founded (fun (T1 : option DerTree) T2 =>
-countOptionConnectivesDer T1  < countOptionConnectivesDer T2).
-unfold well_founded. induction a.
-induction a.
-constructor. intros. simpl in *.
-
-
-induction p. simpl in *. induction y; simpl in *. induction a.
-simpl in *. induction p. simpl in *. omega. simpl in*.
-induction a. simpl in *. constructor.
-Admitted.
-
-Lemma rel_wf : well_founded (fun (T1 : DerTree) T2 =>
-countConnectivesDerTree T1  < countConnectivesDerTree T2).
-Admitted.
+*)
 
 Definition inputTest := prod DerTree StrategyC.
-
-Lemma test_wf : well_founded (fun (x : inputTest) y =>
-  countConnectivesDerTree (fst x) < countConnectivesDerTree (fst y)).
-  Admitted.
 
 Fixpoint mapTest (strat : StrategyC) (lstT : list DerTree) :=
   match lstT with
@@ -881,7 +877,7 @@ Definition constructorODer (Γ : PropFSet) (rule : Rule) (olst : option (list De
 
 Print applyRuleDFirst.
 Print CRule.
-Lemma applyRuleArgLeaves : forall T x r, applyRuleDFirst r T = Some x
+(*Lemma applyRuleArgLeaves : forall T x r, applyRuleDFirst r T = Some x
   -> (exists y, T = Unf y) \/ T = Clf.
 Proof.
   intros.
@@ -895,12 +891,13 @@ Proof.
   rewrite H in H0. discriminate.
   simpl in *.
   refine (or_intror _). trivial.
-Qed.
+Qed.*)
 
 Lemma AndCRuleArg : forall T x, applyRuleDFirst (getCRule AndC) T = Some x
   -> (exists y a b, T = Unf y -> In (a ∧ b) y) \/ T = Clf.
   Admitted.
 
+(*
 Definition applyStratNBleaf (T : DerTree) : StrategyC -> option DerTree.
   refine ((Fix rel_wf) (fun _ => StrategyC -> option DerTree)
   (fun T applyStratNBleaf_rec =>
@@ -933,6 +930,7 @@ Definition applyStratNBleaf (T : DerTree) : StrategyC -> option DerTree.
   admit.
   rewrite H. simpl. admit. admit. admit. admit.
 Admitted.
+*)
 
 Fixpoint applyStratNBleaf_norepeat (strat : StrategyC) (T : DerTree) :=
   match T with
@@ -957,7 +955,7 @@ Fixpoint applyStratNBleaf_norepeat (strat : StrategyC) (T : DerTree) :=
   | _ => None
   end.
 
-Print partitions.
+Print getPartitions.
 
 Inductive CRulePos :=
   | fchoice : CRule -> list DerTree -> CRulePos.
@@ -970,46 +968,48 @@ Print CRule.
 
 Definition CRules := IdC::AndC::OrC::nil.
 
-Fixpoint getLeaves (T : DerTree) :=
+Fixpoint getGoals (T : DerTree) : list DerTree :=
   match T with
   | Der _ _ branches => match branches with
                         | nil => nil
-                        | _ => flat_map getLeaves branches
+                        | _ => flat_map getGoals branches
                         end
   | Clf => nil
   | Unf _ => T :: nil
   end.
 
 (*
-Fixpoint toBranchN' (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
+Fixpoint traverseToNG_help (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
   match Ts with
   | nil => None
   | x::xs => 
-                (let xchild := (length (getLeaves x)) in
-                 if le_dec xchild n then Some (acc, x, xs, n) else toBranchN' xs (minus n xchild) (x::acc))
+                (let xchild := (length (getGoals x)) in
+                 if le_dec xchild n then Some (acc, x, xs, n) else traverseToNG_help xs (minus n xchild) (x::acc))
   end. *)
 
-Compute (getLeaves (Der nil (getCRule AndC) (Clf::(Unf (⊥::nil))::nil))).
-Compute (getLeaves (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
+Compute (getGoals (Der nil (getCRule AndC) (Clf::(Unf (⊥::nil))::nil))).
+Compute (getGoals (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
             (# "p" ∧ # "q" :: nil,
             inl ((# "p" :: # "q" :: nil) :: nil))
             (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil))).
 
-Fixpoint toBranchN' (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
+Fixpoint traverseToNG_help (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
   if gt_dec n (length Ts) then None else (
   if eq_nat_dec n 0 then None else (
   match Ts with
   | nil => None
   | x::xs => match x with
-             | Clf => toBranchN' xs n (acc ++ (x::nil))
-             | _ => let xchild := (length (getLeaves x)) in
+             | Clf => traverseToNG_help xs n (acc ++ (x::nil))
+             | _ => let xchild := (length (getGoals x)) in
                     if le_dec n xchild then Some (acc, x, xs, n)
-                    else toBranchN' xs (minus n xchild) (acc ++ (x::nil))
+                    else traverseToNG_help xs (minus n xchild) (acc ++ (x::nil))
              end
   end)).
 
-Compute (toBranchN' (Clf::(Unf (⊥::nil))::nil) 0 nil).
-Compute (toBranchN' (
+Definition traverseToNG (Ts : list DerTree) (n : nat) := traverseToNG_help Ts n nil.
+
+Compute (traverseToNG_help (Clf::(Unf (⊥::nil))::nil) 0 nil).
+Compute (traverseToNG_help (
             (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil)) 2 nil).
 Print DerTree.
 Print maxList.
@@ -1117,26 +1117,26 @@ Lemma depthOrder_wf : well_founded depthOrder.
 Defined.
 
 Print depthOrder.
-Print toBranchN'.
+Print traverseToNG_help.
 
-Definition toBranchNfix (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
+Definition toBranchNGfix (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
   match Ts with
   | nil => None
-  | res => toBranchN' res n acc
+  | res => traverseToNG_help res n acc
   end.
 
 Check Fix_eq.
 (*Fix_Eq*)
 
 
-Lemma toBranchZero : forall branches acc, toBranchN' branches 0 acc = None.
+Lemma toBranchZero : forall branches acc, traverseToNG_help branches 0 acc = None.
 Proof.
   induction branches.
   intuition.
   simpl. intros. trivial.
 Qed.
 
-Lemma branch_contains : forall branches x acc xs n n' foo, toBranchN' branches n foo = Some (acc, x, xs, n') -> In x branches.
+Lemma branch_contains : forall branches x acc xs n n' foo, traverseToNG_help branches n foo = Some (acc, x, xs, n') -> In x branches.
 Proof.
   induction branches. intros. inversion H.
   induction n; simpl in H1; discriminate H1.
@@ -1151,22 +1151,22 @@ Proof.
   inversion H1. left. trivial.
   right.
   apply (IHbranches x acc xs (n - 1) n' (foo ++ (Unf p) :: nil)). auto.
-  destruct (le_dec n (length (getLeaves (Der p r l)))).
+  destruct (le_dec n (length (getGoals (Der p r l)))).
   inversion H1; left; trivial.
   right.
-  apply (IHbranches x acc xs (n - length (getLeaves (Der p r l))) n' (foo ++ Der p r l :: nil)). auto.
+  apply (IHbranches x acc xs (n - length (getGoals (Der p r l))) n' (foo ++ Der p r l :: nil)). auto.
 Qed.
 
 (*
-Lemma branch_contains : forall branches x acc xs n n' foo, toBranchN' branches n foo = Some (acc, x, xs, n') -> In x branches.
+Lemma branch_contains : forall branches x acc xs n n' foo, traverseToNG_help branches n foo = Some (acc, x, xs, n') -> In x branches.
 Proof.
   induction branches. intros. inversion H.
   intros.
   simpl in H.
-  destruct (le_dec (length (getLeaves a)) n).
+  destruct (le_dec (length (getGoals a)) n).
   inversion H; simpl; auto.
   simpl. right.
-  apply (IHbranches x acc xs (n - length (getLeaves a)) n' (a :: foo)).
+  apply (IHbranches x acc xs (n - length (getGoals a)) n' (a :: foo)).
   auto.
 Qed.
 *)
@@ -1231,14 +1231,14 @@ Definition testBranch (T : DerTree) : (DerTree -> DerTree) -> DerTree.
 
 Compute (testBranch Clf (fun _ => Clf)).
 
-
-Definition toBranchN (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
+(* Might want to change it to an option type *)
+Definition toBranchNG (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
   refine (Fix depthOrder_wf (fun _ => (DerTree -> DerTree) -> nat -> DerTree)
-  (fun T toBranchN_rec  =>
+  (fun T toBranchNG_rec  =>
   (match T as T' return (T = T' -> (DerTree -> DerTree) -> nat -> DerTree) with
-  | Der Γ r branches => (fun _ f n => (match toBranchN' branches n nil as cinfo
-                        return (((toBranchN' branches n nil) = cinfo) -> DerTree) with
-                        | Some (acc, x, xs, n') => (fun H => Der Γ r (acc ++ (toBranchN_rec x _ f n') :: xs))
+  | Der Γ r branches => (fun _ f n => (match traverseToNG branches n as cinfo
+                        return (((traverseToNG branches n) = cinfo) -> DerTree) with
+                        | Some (acc, x, xs, n') => (fun H => Der Γ r (acc ++ (toBranchNG_rec x _ f n') :: xs))
                         | None => fun _ => T
                         end) eq_refl)
   | _ => (fun _ f n => f T)
@@ -1250,20 +1250,20 @@ Definition toBranchN (T : DerTree) : (DerTree -> DerTree) -> nat -> DerTree.
   exact (d x H0).
   Defined.
 
-Compute (toBranchN Clf (fun _ => Clf) 1).
+Compute (toBranchNG Clf (fun _ => Clf) 1).
 
-Print partitions.
+Print getPartitions.
 Print applyRuleD.
 
-Definition getNChild (T : DerTree) : nat -> option DerTree.
+Definition getNGoal (T : DerTree) : nat -> option DerTree.
   refine (Fix depthOrder_wf (fun _ => (nat -> option DerTree))
-  (fun T getNChild_rec =>
+  (fun T getNGoal_rec =>
   (match T as T' return (T=T' -> nat -> option DerTree) with
   | Der _ _ branches => fun H n => (
-                        (match toBranchN' branches n nil as branchRes
-                        return (toBranchN' branches n nil = branchRes -> option DerTree) with
+                        (match traverseToNG branches n as branchRes
+                        return (traverseToNG branches n = branchRes -> option DerTree) with
                         | None => fun _ => None
-                        | Some (_, x, _, n') => fun _ => getNChild_rec x _ n'
+                        | Some (_, x, _, n') => fun _ => getNGoal_rec x _ n'
                         end) eq_refl)
   | _ => fun _ n => if eq_nat_dec n 0 then None else Some T
   end) eq_refl) T).
@@ -1274,10 +1274,10 @@ Definition getNChild (T : DerTree) : nat -> option DerTree.
   exact (d x H).
   Defined.
 
-Check getNChild.
-Compute (getNChild (Unf (⊥::nil)) 1).
+Check getNGoal.
+Compute (getNGoal (Unf (⊥::nil)) 1).
 
-Print partitions.
+Print getPartitions.
 Print getCRule.
 Print applyRuleN.
 Print instantiateAllPartitions.
@@ -1286,30 +1286,65 @@ Print optionSucMap.
 
 Definition updateLeaf (T : DerTree) : (DerTree -> DerTree) := fun _ => T.
 
-Definition applyRtoN (T : DerTree) (rule : CRule) (n : nat) :=
-  match getNChild T n with
+Definition applyRtoNG (T : DerTree) (rule : Rule) (n : nat) :=
+  match getNGoal T n with
   | None => None
-  | Some child => match child with
-                  | Unf Γ => let r := getCRule rule in
-                             match partitions (getNumerator r) Γ with
-                             | nil => None
-                             | Π => match optionSucMap _ _ (applyPartitionRuleD r Γ) Π with
-                                    | None => None
-                                    | Some newNodes =>
-                                    Some (map (fun x => toBranchN T x n) (map updateLeaf newNodes))
-                                    end
-                             end
-                  | _ => None
-                  end
+  | Some goal => 
+      match goal with
+      | Unf Γ => match getPartitions (getNumerator rule) Γ with
+                 | nil => None
+                 | Π => match optionSucMap _ _ (applyPartitionRuleD rule Γ) Π with
+                        | None => None
+                        | Some newNodes =>
+                        Some (map (fun x => toBranchNG T x n) (map updateLeaf newNodes))
+                        end
+                 end
+      | _ => None
+      end
   end.
 
-Compute applyRtoN (Unf ((#"a" ∧ #"b")::(#"a" ∧ #"a")::nil)) AndC 1.
-Compute applyRtoN (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
+Definition applyCRtoNG (T : DerTree) (rule : CRule) (n : nat) := applyRtoNG T (getCRule rule) n. 
+
+Recursive Extraction applyRtoNG.
+
+Fixpoint pickNFApply (results : option (list DerTree)) (n : nat) :=
+  match results with
+  | None => None
+  | Some nil => None
+  | Some (x::xs) => match n with
+                    | 0 => None
+                    | 1 => Some x
+                    | S n' => pickNFApply (Some xs) n'
+                    end
+  end.
+
+Fixpoint pickNFApply_nil (results : option (list DerTree)) (n : nat) :=
+  match results with
+  | None => Unf nil
+  | Some nil => Unf nil
+  | Some (x::xs) => match n with
+                    | 0 => Unf nil
+                    | 1 => x
+                    | S n' => pickNFApply_nil (Some xs) n'
+                    end
+  end.
+
+Compute applyCRtoNG (Unf ((#"a" ∧ #"b")::(#"a" ∧ #"a")::nil)) AndC 1.
+Compute applyCRtoNG (Der (# "a" ∧ # "b" :: # "a" ∧ # "a" :: nil)
             (# "p" ∧ # "q" :: nil,
             inl ((# "p" :: # "q" :: nil) :: nil))
-            (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil)) AndC 1.
+            (Unf ((#"a" ∧ #"b")::nil) :: Unf ((⊥ ∧ ⊥)::nil) ::nil)) AndC 2.
 
-Recursive Extraction applyRtoN.
+Definition cpl_example := (#"A" ∧ ((¬ (#"A")) ∨ (# "B")) ∧ (¬ (# "B"))).
+
+Definition step1 := Unf (cpl_example :: nil).
+Definition step2 := pickNFApply_nil (applyCRtoNG step1 AndC 1) 1.
+Definition step3 := pickNFApply_nil (applyCRtoNG step2 AndC 1) 1.
+Definition step4 := pickNFApply_nil (applyCRtoNG step3 OrC 1) 1.
+Definition step5 := pickNFApply_nil (applyCRtoNG step4 IdC 1) 1.
+Definition step6 := pickNFApply_nil (applyCRtoNG step5 IdC 1) 1.
+
+Compute step2.
 
 (*
 Fixpoint applyStratNB' (strat : StrategyC) (T : DerTree) :=
