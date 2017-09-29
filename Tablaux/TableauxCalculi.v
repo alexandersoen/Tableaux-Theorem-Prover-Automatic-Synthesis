@@ -348,17 +348,25 @@ Proof.
   simpl in *. intuition.
 Qed.
 
+(*
 Definition getPartitions_help (schema : PropFSet) : PropFSet -> Partition -> list Partition.
   refine (Fix (lengthOrder_wf PropF) (fun _ => PropFSet -> Partition -> list Partition)
    (fun schema getPartitions_help_rec =>
    (match schema as schema' return (schema = schema' -> PropFSet -> Partition -> list Partition) with
     | nil => fun _ _ accπ => accπ::nil
     | s::ss => fun H Γ accπ => let Π := partition_help s Γ accπ in
-        flat_map (fun π => getPartitions_help_rec (applyPartition ss π) _ Γ π) Π
+        flat_map (fun π => getPartitions_help_rec (ss) _ Γ π) Π
     end) eq_refl) schema).
     rewrite H. assert (length (applyPartition ss π) <= length ss) by apply unchanging.
     unfold lengthOrder; simpl. omega.
     Defined.
+*)
+
+Fixpoint getPartitions_help (schema Γ : PropFSet) (acc : Partition) : list Partition :=
+  match schema with
+  | nil => acc :: nil
+  | s::ss => flat_map (fun π => getPartitions_help ss Γ π) (partition_help s Γ acc)
+  end.
 
 Fixpoint filterpi (π : Partition) :=
   match π with
@@ -368,17 +376,21 @@ Fixpoint filterpi (π : Partition) :=
 
 Definition getPartitions schema Γ := (getPartitions_help schema Γ nil).
 
+Check getPartitions.
+
 Fixpoint removeFromSet remove Γ :=
   match Γ with
   | nil => nil
   | γ::γs => if EquivPropF γ remove then γs else γ::(removeFromSet remove γs)
   end.
 
-Fixpoint removeMultSet Remove Γ :=
+Fixpoint removeMultSet (Remove Γ : PropFSet) : PropFSet :=
   match Remove with
   | nil => Γ
   | r::rs => removeMultSet rs (removeFromSet r Γ)
   end.
+
+Check removeMultSet.
 
 Print Denominator.
 Print TableauNode.
@@ -433,7 +445,7 @@ Inductive DerTree :=
   | Der : PropFSet -> Rule -> list DerTree -> DerTree
   .
 
-Fixpoint DerTree_recursion (PT : DerTree -> Type) (PL : list DerTree -> Type)
+Fixpoint DerTree_induction (PT : DerTree -> Type) (PL : list DerTree -> Type)
   (f_Clf : PT Clf) (f_Unf : forall x, PT (Unf x)) (f_Der : forall x r l, PL l -> PT (Der x r l))
   (g_nil : PL nil) (g_cons : forall x, PT x -> forall xs, PL xs -> PL (cons x xs)) 
   (t : DerTree) : PT t.
@@ -444,12 +456,12 @@ Fixpoint DerTree_recursion (PT : DerTree -> Type) (PL : list DerTree -> Type)
   induction l; auto.
   apply g_cons; auto.
   (* And since Coq knows this is a good recursive call, we're done *)
-  apply (DerTree_recursion PT PL); auto.
+  apply (DerTree_induction PT PL); auto.
   Defined.
 
 Theorem DerTree_eq_dec : forall (d1 d2 : DerTree), {d1=d2} + {d1 <> d2}.
 Proof.
-  induction d1 using DerTree_recursion with (PL := fun l1 => forall l2, {l1=l2} + {l1<>l2}).
+  induction d1 using DerTree_induction with (PL := fun l1 => forall l2, {l1=l2} + {l1<>l2}).
 (* Clf *)
   destruct d2; [left; auto | right; discriminate | right ; discriminate].
 (* Unf *)
@@ -624,6 +636,7 @@ Fixpoint derTreeAppend (rule : Rule) (Γ : PropFSet) (branches : list TableauNod
                   end
   end.
 
+Check derTreeAppend.
 Print tableauAppend.
 Print Denominator.
 
@@ -638,10 +651,12 @@ Definition applyPartitionRuleD (rule : Rule) (Γ : PropFSet) (π : Partition) :=
          end
   end.
 
+Check applyPartitionRuleD.
+
 Print DerTree.
 Compute (applyPartitionRuleD AndRule (# "p"::nil) nil).
 Compute (applyPartition (getNumerator IdRule) nil).
-Compute (applyPartitionRuleD IdRule (# "p" :: ¬ # "p" :: nil) nil).
+Compute (applyPartitionRuleD IdRule (# "p" :: ¬ # "p" :: nil) ((# "p", # "p")::nil)).
 
 Check applyPartitionRuleD.
 
@@ -1093,7 +1108,7 @@ Qed.
 
 Lemma depthOrder_wf : well_founded depthOrder.
   unfold well_founded.
-  induction a using DerTree_recursion with (PL := fun branch => forall b, depthDerTree b < S (maxList (map depthDerTree branch)) -> Acc depthOrder b).
+  induction a using DerTree_induction with (PL := fun branch => forall b, depthDerTree b < S (maxList (map depthDerTree branch)) -> Acc depthOrder b).
   constructor; intros; red in H; red in H; simpl in H; omega.
   constructor; intros; red in H; red in H; simpl in H; omega.
   constructor. intros.
@@ -1344,7 +1359,12 @@ Definition step4 := pickNFApply_nil (applyCRtoNG step3 OrC 1) 1.
 Definition step5 := pickNFApply_nil (applyCRtoNG step4 IdC 1) 1.
 Definition step6 := pickNFApply_nil (applyCRtoNG step5 IdC 1) 1.
 
-Compute step2.
+Compute getGoals step1.
+Compute getGoals step2.
+Compute getGoals step3.
+Compute getGoals step4.
+Compute getGoals step5.
+Compute getGoals step6.
 
 (*
 Fixpoint applyStratNB' (strat : StrategyC) (T : DerTree) :=
