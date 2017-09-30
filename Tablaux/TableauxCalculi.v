@@ -57,12 +57,12 @@ Fixpoint EquivPropV x y :=
 (* Basic set of PropF *)
 Definition PropFSet : Type := list PropF.
 
-(* Possible Results after proof search *)
-Inductive Results :=
-  | Closed
+(* Possible Denom after proof search *)
+Inductive Denom :=
+  | Terminate
 .
 
-Theorem Results_eq_dec : forall (r1 r2 : Results), {r1=r2} + {r1<>r2}.
+Theorem Denom_eq_dec : forall (r1 r2 : Denom), {r1=r2} + {r1<>r2}.
 Proof.
   induction r1, r2.
   left; trivial.
@@ -70,16 +70,16 @@ Defined.
 
 (* Defining a tableau rule *)
 Definition Numerator := PropFSet.
-Definition Denominator := sum (list PropFSet) Results.
+Definition Denominator := sum (list PropFSet) Denom.
 
-Check inr Closed : Denominator.
+Check inr Terminate : Denominator.
 
 Definition Rule := prod Numerator Denominator.
 
 Definition getNumerator (rule : Rule) := fst rule.
 Definition getDenominator (rule : Rule) := snd rule.
 
-Definition TableauNode := sum PropFSet Results.
+Definition TableauNode := sum PropFSet Denom.
 
 Lemma propfDiscAnd1 : forall p: PropF, p ∧ p = p -> False.
 intros.
@@ -180,7 +180,7 @@ Proof.
   right; intuition; inversion H; auto.
   right; intuition; discriminate H.
   right; intuition; discriminate H.
-  left; destruct b, r; auto.
+  left; destruct b, d; auto.
 Defined.
 
 Theorem Rule_eq_dec : forall (r1 r2 : Rule), {r1=r2} + {r1<>r2}.
@@ -426,7 +426,7 @@ Fixpoint applyRule' (rule : Rule) (T : TableauNode) : option (list TableauNode) 
              end
   end.
 
-Definition IdRule : Rule := (((# "p")::(¬(# "p"))::nil), ((inr Closed)):Denominator).
+Definition IdRule : Rule := (((# "p")::(¬(# "p"))::nil), ((inr Terminate)):Denominator).
 Definition OrRule : Rule := (((# "p" ∨ # "q")::nil), (inl (((# "p")::nil)::((# "q")::nil)::nil))).
 Definition AndRule : Rule := (((# "p" ∧ # "q")::nil), (inl (((# "p")::(# "q")::nil)::nil))).
 
@@ -539,7 +539,7 @@ Fixpoint closeMap (l : list TableauNode) :=
   match l with
   | nil => nil
   | x::xs => match x with
-             | inr Closed => Clf :: closeMap xs
+             | inr Terminate => Clf :: closeMap xs
              | _ => Unf x :: closeMap xs
              end
   end.
@@ -556,7 +556,7 @@ Fixpoint applyRule (rule : Rule) (T : DerTree) : list DerTree :=
 *)
 
 Inductive treeResult (A : Type) : Type :=
-  | ClosedLeaf : treeResult A
+  | TerminateLeaf : treeResult A
   | Ok : A -> treeResult A
   | FailRes : treeResult A
   .
@@ -566,7 +566,7 @@ Fixpoint treeResBranch (A B : Type) (f : A -> treeResult B) (branches : list A) 
   | nil => FailRes _
   | b::bs => match f b with
              | FailRes _ => FailRes _
-             | ClosedLeaf _ => treeResBranch _ _ f bs
+             | TerminateLeaf _ => treeResBranch _ _ f bs
              | Ok _ res => Ok _ res
              end
   end.
@@ -574,14 +574,14 @@ Fixpoint treeResBranch (A B : Type) (f : A -> treeResult B) (branches : list A) 
 Fixpoint derTreeCons (x : treeResult DerTree) (xs : treeResult (list DerTree)) :=
   match x with
   | FailRes _ => FailRes _
-  | ClosedLeaf _ => match xs with
+  | TerminateLeaf _ => match xs with
                     | FailRes _ => FailRes _
-                    | ClosedLeaf _ => FailRes _
+                    | TerminateLeaf _ => FailRes _
                     | Ok _ ress => Ok _ (Clf :: ress)
                     end
   | Ok _ res => match xs with
                     | FailRes _ => FailRes _
-                    | ClosedLeaf _ => FailRes _
+                    | TerminateLeaf _ => FailRes _
                     | Ok _ ress => Ok _ (res :: ress)
                     end
   end.
@@ -631,7 +631,7 @@ Fixpoint derTreeAppend (rule : Rule) (Γ : PropFSet) (branches : list TableauNod
            | _ => Some (Der Γ rule acc)
            end
   | node::rest => match node with
-                  | inr Closed => derTreeAppend rule Γ rest (Clf :: acc)
+                  | inr Terminate => derTreeAppend rule Γ rest (Clf :: acc)
                   | inl lst => derTreeAppend rule Γ rest (Unf lst :: acc)
                   end
   end.
@@ -800,7 +800,7 @@ Proof.
     case p0; simpl. 
     case (optionSucMap' Partition DerTree
       (applyPartitionRuleD
-         (# "p" :: ¬ # "p" :: nil, inr Closed) p) l).
+         (# "p" :: ¬ # "p" :: nil, inr Terminate) p) l).
     intros. induction l0; simpl; intuition.
 
     Check applyPartitionRuleD.
@@ -1020,6 +1020,8 @@ Fixpoint traverseToNG_help (Ts : list DerTree) (n : nat) (acc : list DerTree) :=
                     else traverseToNG_help xs (minus n xchild) (acc ++ (x::nil))
              end
   end)).
+
+Check traverseToNG_help.
 
 Definition traverseToNG (Ts : list DerTree) (n : nat) := traverseToNG_help Ts n nil.
 
@@ -1396,8 +1398,8 @@ Fixpoint applyRule (rule : Rule) (T : DerTree) : list (treeResult DerTree) :=
   | Der Γ r derlist => match derlist with
                        | nil => FailRes _
                        | b::bs => match b with
-                                  | ClosedLeaf _ 
-  | Clf => (ClosedLeaf _) :: nil
+                                  | TerminateLeaf _ 
+  | Clf => (TerminateLeaf _) :: nil
   end.
 
 Fixpoint applyRules' (rule : Rule) (T : DerTree) : list (treeResult DerTree) :=
@@ -1434,7 +1436,7 @@ Fixpoint applyRule (rule : Rule) (T : DerTree) : treeResult (list DerTree) :=
                        | nil => FailRes _
                        | lst => treeResBranch _ _ (applyRule rule) lst
                        end
-  | Clf => ClosedLeaf _
+  | Clf => TerminateLeaf _
   end.
 
 Fixpoint applyRule (rule : Rule) (T : DerTree) : option (list DerTree) :=
