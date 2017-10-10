@@ -1,0 +1,69 @@
+\begin{thebibliography}{10}
+
+\bibitem{d2013handbook}
+D'Agostino, M., Gabbay, D.M., H{\"a}hnle, R., Posegga, J.:
+\newblock Handbook of tableau methods.
+\newblock Springer Science \& Business Media (2013)
+
+\bibitem{barras1997coq}
+Barras, B., Boutin, S., Cornes, C., Courant, J., Filliatre, J.C., Gimenez, E.,
+  Herbelin, H., Huet, G., Munoz, C., Murthy, C.,  et~al.:
+\newblock The Coq proof assistant reference manual: Version 6.1.
+\newblock PhD thesis, Inria (1997)
+
+\bibitem{tsarkov2006fact++}
+Tsarkov, D., Horrocks, I.:
+\newblock Fact++ description logic reasoner: System description.
+\newblock Automated reasoning (2006)  292--297
+
+\bibitem{hustadt2000mspass}
+Hustadt, U., Schmidt, R.A.:
+\newblock Mspass: Modal reasoning by translation and first-order resolution.
+\newblock In: TABLEAUX. Volume 1847., Springer (2000)  67--71
+
+\bibitem{del2001lotrec}
+del Cerro, L.F., Fauthoux, D., Gasquet, O., Herzig, A., Longin, D., Massacci,
+  F.:
+\newblock Lotrec: the generic tableau prover for modal and description logics.
+\newblock In: IJCAR. Volume~1., Springer (2001)  453--458
+
+\bibitem{abate2007tableau}
+Abate, P.:
+\newblock The Tableau Workbench: a framework for building automated
+  tableau-based theorem provers.
+\newblock Citeseer (2007)
+
+\bibitem{castilho1997modal}
+Castilho, M.A., del Cerro, L.F., Gasquet, O., Herzig, A.:
+\newblock Modal tableaux with propagation rules and structural rules.
+\newblock Fundamenta Informaticae \textbf{32}(3, 4) (1997)  281--297
+
+\bibitem{letouzey2008extraction}
+Letouzey, P.:
+\newblock Extraction in coq: An overview.
+\newblock Logic and Theory of Algorithms (2008)  359--369
+
+\bibitem{kelly2009revised}
+Kelly, J.D.:
+\newblock A revised tactic semantics for the tableau work bench.
+\newblock (2009)
+
+\bibitem{barthe2006defining}
+Barthe, G., Forest, J., Pichardie, D., Rusu, V.:
+\newblock Defining and reasoning about recursive functions: a practical tool
+  for the coq proof assistant.
+\newblock In: FLOPS. Volume 3945., Springer (2006)  114--129
+
+\bibitem{van2015propositional}
+van Doorn, F.:
+\newblock Propositional calculus in coq.
+\newblock arXiv preprint arXiv:1503.08744 (2015)
+
+\bibitem{dawson2003new}
+Dawson, J.E., Gor{\'e}, R.:
+\newblock A new machine-checked proof of strong normalisation for display
+  logic.
+\newblock Electronic Notes in Theoretical Computer Science \textbf{78} (2003)
+  20--39
+
+\end{thebibliography}

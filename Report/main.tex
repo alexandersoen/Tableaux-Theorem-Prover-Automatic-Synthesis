@@ -3,6 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath}
 \usepackage{cite}
+\usepackage{array, longtable}
 
 \DeclareUnicodeCharacter{2227}{$\wedge$}
 \DeclareUnicodeCharacter{2228}{$\vee$}
@@ -10,6 +11,7 @@
 
 \newcommand{\nnf}{{nnf}}
 \newcommand{\comment}[1]{}
+\allowdisplaybreaks
 
 \begin{document}
 
@@ -48,53 +50,57 @@ specific theorem provers such as Fact++ \cite{tsarkov2006fact++}
 and MSPASS \cite{hustadt2000mspass}. However, whenever a new tableau calculus is
 devised, trying to develop a corresponding theorem prover can be difficult
 without specific knowledge in programming. The current systems which try and
-accommodate for generic logic systems include LoTREC
-\cite{del2001lotrec} and the Tableau Work Bench
-\cite{abate2007tableau}. (NEED DESCRIPTION OF LoTREC AND THE
-DIFFERENCE TO WHAT IT DOES AND WHAT IM DOING).  The Tableau Work Bench allows
-the user to define tableau rules and specify a strategy to guide the proof
-search procedure which determines if a formula is a
-theorem.
+accommodate for generic logic systems include LoTREC \cite{del2001lotrec} and
+the Tableau Work Bench \cite{abate2007tableau}. LoTREC accepts a semantic
+description of a logic to define a graph-based tableau
+\cite{castilho1997modal}. The Tableau Work Bench allows the user to define
+tableau rules and specify a strategy to guide the proof search procedure which
+determines if a formula is a theorem. We choose to follow the Tableau Work
+Bench's input language as it directly corresponds to the tableau calculus the
+user describes.
 
-Although both LoTREC and the Tableau Work Bench allows a user to input
-tableau rules to define a logic system as a tableau system, there is no
-guarantees that the tableau rules correctly associates to the logic system the
-user tries to describe. Currently, the user must prove this correspondence
-separately to using LoTREC or the Tableau Work Bench. However, even if the user
-does this, there is still no guarantee that LoTREC nor the Tableau Work Bench
-correctly translates these set of rules so the tableau method correctly
+Although both LoTREC and the Tableau Work Bench allows a user to describe the
+tableau rules to define a logic as a tableau system, there are no guarantees
+that the tableau rules correctly associates to the logic the user tries to
+describe. Currently, the user must prove this correspondence separately to
+using LoTREC or the Tableau Work Bench. However, even if the user does this,
+there are still no guarantees that LoTREC or the Tableau Work Bench correctly
+translates the set of rules such that the tableau method defined correctly
 represents the logic. Furthermore, there is no way to prove properties
-regarding proof search when using these the LoTREC and the Tableau Work Bench.
+regarding proof search when using LoTREC or the Tableau Work Bench.
 
 We aim to implement a system similar to the Tableau Work Bench which
 additionally allows us to prove correctness of the rules which the user inputs
-and additionally allows the user to prove additional properties about the
-tableau search procedure of determining if a formula is a theorem. We choose to
-implement the framework in Coq for two main reasons. The
-first reason is the extraction mechanism of Coq. This allows us to transform
-Coq proofs and, importantly, functions into functional programs
-\cite{letouzey2008extraction}.  This allows us to prove various properties
-about the search procedure defined in Coq and its corresponding extracted
-program which determines if a formula is a theorems. The second reason is to
-couple the implementation of the theorem prover and proofs about the associated
-tableau calculi being defined for the theorem prover. That is, within the Coq
-environment, a user can prove that the rule set they give to the framework
-describes the logic. Then the framework can guarantee that the generated
-theorem prover correctly associates to the logic the user is trying to
-describe.
+with respect to the logic they are trying to define. Furthermore, we want the
+system to allow the user to prove properties about the tableau search procedure
+with respect to the defined logic. We choose to implement the framework in Coq
+for two main reasons.  The first reason is the extraction mechanism of Coq.
+This allows us to transform Coq proofs and, importantly, functions into
+functional programs \cite{letouzey2008extraction}.  This allows us to prove
+various properties about the search procedure to determine if a formula is a
+theorem in a logic defined in Coq and its corresponding extracted program. The
+second reason is to couple the implementation and associated proofs of the
+theorem prover. For example, within the Coq environment, a user can prove that
+the rule set they give to the framework describes a specific logic. The
+framework then can guarantee that the generated theorem prover correctly
+corresponds to the logic the user is trying to describe with the rule set.
 
 Although providing additional guarantees about the generated theorem prover
-requires additional input from the user, many of these additional requirements
-are required for the logic and its tableau calculi of the theorem prover being
-implemented to be useful. For example, to show correctness of a proof search,
-the rules first must be shown to be sound and complete with respect to the
-logic it is said to describe. However, the proof for soundness and completeness
-is required to show any usefulness for a logic and its tableau calculi.
+requires the user to provide proofs to the system, many of these proofs are
+standard when defining a useful tableau calculi for a logic.  For example, to
+show correctness of a proof search, the rules first must be shown to be sound
+and complete with respect to the logic it is describing.  However, when
+defining a tableau calculi for a logic, a proof of soundness and completeness
+is needed to show that the tableau calculi correctly corresponds to that logic.
+Hence, before the implementation of a theorem prover for a tableau calculi,
+this property is already proven. For these logics, the proof of soundness and
+completeness just need to be translated to Coq in the framework.
 
 In this paper, we provide a description of the implementation of a framework
 implemented in Coq which synthesises theorem provers when given a grammar of
-formulas in a logic and a set of tableau rules. We demonstrate the framework
-with the standard grammar and tableau rules for classical propositional logic.
+the formulas in a logic and a set of corresponding tableau rules. We
+demonstrate the framework with the standard grammar and tableau rules for
+classical propositional logic.
 %
 \section{Preliminaries}
 %
@@ -103,9 +109,9 @@ propositional logic and notation for the rest of the paper.
 %
 \subsection{Tableau Calculi}
 %
-A tableau calculus provides a decision procedure to determine if a formula
-is satisfiable through the decomposition of sets of formulae. Further more,
-the tableau method can be used to determine if a formula is valid in a specific
+A tableau calculus provides a decision procedure to determine if a formula is
+satisfiable through the decomposition of sets of formulae. Furthermore, the
+tableau method can be used to determine if a formula is valid in a specific
 logic.
 
 More specifically, a tableau calculus consists of a finite set of rules which
@@ -170,8 +176,8 @@ root and all children of a node are applications of a rule on that node.
 We describe the relation between a closed tableau and satisfiability with
 respect to the tree in which a tableau expresses.
 
-A tableau is closed if all the leaves of the tableau tree have symbol $\times$.
-If a tableau is not closed, then it is open.
+A tableau is closed if all the leaves of the tableau tree have the symbol
+$\times$.  If a tableau is not closed, then it is open.
 \end{definition}
 \begin{definition}
 
@@ -191,13 +197,16 @@ following.
 
 We define a partition to be a map from propositional variables, $PV$, to
 formulae, $F$, in a logic. Given a partition $\pi$, we define the evaluation of
-$\pi$ on a formula $p$, $\pi(p)$, to be the substitution of the propositional
-variables in $p$ with respect to $\pi$.
+$\pi$ on a formula $f$, $\pi(f)$, to be the substitution of the propositional
+variables in $f$ with respect to $\pi$. For example, in classical propositional
+logic suppose we have a partition $\pi$, which maps the propositional variable
+$p$ to the formula $q \wedge r$, and a formula $f = p \vee p$. Then $\pi(f) =
+(q \wedge r) \vee (q \wedge r)$.
 \end{definition}
 \begin{definition}{Formulae Instance}\label{Formulae Instance}
 
-A formula $p$ is an instance of another formulae $q$ if there exists partition
-$\pi$ such that $\pi(p) = q$.
+A formula $p$ is an instance of another formulae $q$ if there exists a
+partition $\pi$ such that $\pi(q) = p$.
 
 A set of formulae $\Gamma$ is an instance of another set of formulae
 $\Delta$ if there exists a partition $\pi$ such that for each formula $\delta
@@ -205,7 +214,14 @@ $\Delta$ if there exists a partition $\pi$ such that for each formula $\delta
 = \gamma$.
 
 If a formulae $\Gamma$ is an instance of the numerator of a rule $R$, we say
-that $\Gamma$ is an instance of rule $R$.
+that the rule $R$ can be applied to the formula $\Gamma$. Further, given a
+partition $\pi$ which makes $\Gamma$ an instance of the numerator of a rule
+$R$, we call
+%
+$$\Gamma \setminus \pi(\textrm{numerator}(R)) \cup
+\pi(\textrm{denominator}(R))$$
+%
+an instance of the rule $R$ on a set of formulae $\Gamma$.
 \end{definition}
 \begin{definition}{Applicable Partition}\label{Applicable Partition}
 
@@ -239,17 +255,17 @@ We also define the other standard connectives for CPL as the following.
 %
 $$
 \begin{array}{rlcll}
-(\varphi \leftrightarrow \psi) &&=&& ((\varphi \rightarrow \psi) \wedge (\psi
-\rightarrow \varphi)) \\
+(\varphi \leftrightarrow \psi) &&\equiv&& ((\varphi \rightarrow \psi) \wedge
+(\psi \rightarrow \varphi)) \\
 \end{array}
 $$
 %
 \end{definition}
 \begin{definition}{CPL Models and Valuations of CPL Formulae}\label{CPL Model}
 
-We define a CPL Model similarly to \cite{kelly2009revised} to be a function
-$\vartheta \, : \, PV \rightarrow \{True, False\}$. The valuation of a formula
-under a model $\vartheta$ is defined recursively as the following.
+We define a CPL Model to be a function $\vartheta \, : \, PV \rightarrow
+\{True, False\}$ \cite{kelly2009revised}. The valuation of a formula under a
+model $\vartheta$ is defined recursively as the following.
 %
 \begin{align*}
 \vartheta (\bot) &= False \\
@@ -278,6 +294,7 @@ True \\
 False & \textrm{otherwise} \\
 \end{cases} \\
 \end{align*}
+%
 \end{definition}
 \begin{definition}{Satisfiability in CPL}\label{Satisfiability in CPL}
 
@@ -298,7 +315,7 @@ precedence will be from highest to lowest as defined in the definition.
 %
 \section{Tableau for CPL}\label{Tableau for CPL}
 %
-The tableau calculus for CPL we will use requires formulae to be in negation
+The tableau calculus we use for CPL requires formulae to be in negation
 normal form.
 %
 \begin{definition}{Negation Normal Form for CPL}\label{NNF for CPL}
@@ -354,43 +371,46 @@ It can be shown that these rules are invertible.
 \section{Implementation in Coq}
 %
 In this section we detail the main restrictions we have in defining the
-framework in Coq instead of a traditional programming language like how the
-Tableau Work Bench is implemented in O'Caml.
+framework in Coq instead of a traditional programming language. The framework
+is similar to the Tableau Work Bench which is implemented in O'Caml
+\cite{abate2007tableau, kelly2009revised}.
 %
 \subsection{Defining Functions} \label{Defining Functions}
 %
 Coq defines a dependently typed functional programming language. However,
-unlike programming languages not in an interactive theorem prover like O'Caml
-and Haskell, Coq requires the decidability of type-checking to allow for proofs
-\cite{barthe2006defining}. As a result, this additionally requires all
-functions defined in Coq to be provably terminating, total and deterministic.
-Totality and deterministic are enforced through the Coq language when defining
-functions. However to enforce termination, Coq checks the definition of the
-function to ensure that recursive calls of the function have a structurally
-(strictly) decreasing argument. For simple functions, sometimes the termination
-of a function can be automatically inferred. However, in general this requires
-the user to provide a proof of termination.
+unlike programming languages not in an interactive theorem prover (like O'Caml
+and Haskell), Coq requires the decidability of type-checking for all defined
+functions to allow for proofs \cite{barthe2006defining}. As a result, all
+functions defined in Coq are required to be provably terminating, total and
+deterministic. Totality and deterministic functions are enforced through the
+Coq language when defining functions. However, to enforce termination, Coq
+checks the definition of the function to ensure that recursive calls of the
+function have a structurally (strictly) decreasing argument. For simple
+functions, sometimes the termination of a function can be automatically
+inferred by Coq. However, in general this requires the user to explicitly
+provide a proof of termination.
 
-To prove termination of general recursive functions, these functions are
-defined by using well-founded recursion. Defining a function this way requires
-two steps. The first is to prove a relation is well-founded. The second is to
-prove that the function has a structurally decreasing argument in each of its
-recursive calls.
+To prove termination of general recursive functions, the functions are defined
+using well-founded recursion where a proof of termination needs to be given.
+Defining a function this way requires two steps. The first is to prove that a
+relation is well-founded. The second is to prove that the function has a
+decreasing argument, with respect to the well-founded relation in the first
+part, in each of its recursive calls.
 
 To prove a relation $R$ is well-founded in Coq, we prove in Coq that
-\\\verb+well_founded R+ holds. Underlying this in Coq, is the notion of
-accessibility of a relation which is defined as \verb+Acc+ in Coq.
-Well-foundedness is equivalent to the notion that the relation does not have
-any infinite chains. This follows the intuition that there are no infinitely
-nested recursive calls when a function respects this well-founded relation,
-that is the function terminates. Once the relation is proven to be
-well-founded, a general recursive function can be defined with the \verb+Fix+
-keyword in Coq, where a proof that the recursive calls have a structurally 
-decreasing argument with respect to the well-founded relation.
+\\\verb+well_founded R+ is a theorem. Underlying this in Coq is the notion of
+the accessibility of a relation, defined as \verb+Acc+ in Coq.  The definition
+of a well-founded relation in Coq is equivalent to the definition that the
+relation does not have any infinite chains. This follows the intuition that
+there are no infinitely nested recursive calls in the function, that is the
+function terminates. Once the relation is proven to be well-founded, a general
+recursive function can be defined with the \verb+Fix+ keyword in Coq, where a
+proof that the recursive calls has a decreasing argument with respect to the
+well-founded relation is required.
 
 In the implementation of the tableau-based theorem prover synthesiser, we use
-the well-founded relation for the depth of a tree. We define the relation as
-the following.
+the well-founded relation for the depth of a tree to define various functions.
+We define the relation as the following.
 %
 \comment{
 we use
@@ -449,7 +469,7 @@ notions of tableau and CPL in Coq. Additionally, we define a specific
 implementation of a tableau-based theorem prover for CPL with the rule set
 defined in section (\ref{Tableau for CPL}).
 %
-\subsection{CPL in Coq}
+\subsection{CPL in Coq}\label{CPL in Coq}
 %
 We define CPL in Coq similarly to definition (\ref{Syntax of CPL}) based on
 \cite{van2015propositional}.
@@ -463,7 +483,7 @@ Inductive PropF : Type :=
   | Impl : PropF -> PropF -> PropF.
 \end{verbatim}
 %
-We further provide notation for the negation connectives of propositional
+We further provide notation for the negation connectives for propositional
 logic with respect to the definition of \verb+PropF+.
 %
 \begin{verbatim}
@@ -471,17 +491,18 @@ Definition Neg A := Imp A Bot.
 \end{verbatim}
 %
 We define a propositional variable as a map from a \verb+string+ to a
-\verb+PropF+. We note that we can define a propositional variable as a map from
-almost any decidable type to \verb+PropF+. We use the pre-defined lemma in Coq,
-\verb+string_eq_dec+ such that we can prove that \verb+PropF+ is decidable.
-\verb+PropF+ needs to be decidable as we need to compare \verb+PropF+ types in
-the tableau-based theorem prover framework.
+\verb+PropF+. We note that we need to define a propositional variable as a map
+from a type that is decidable with respect to  equality to \verb+PropF+
+formulae. We use the pre-defined lemma in Coq, \verb+string_eq_dec+ to prove
+that \verb+PropF+ is decidable with respect to equality. \verb+PropF+ needs to
+be decidable with respect to equality as we need to compute comparisons of
+\verb+PropF+ formulae in the framework defined.
 %
 \subsection{Tableaux in Coq}
 %
-Using the defined notion of CPL in Coq, we define general data structures to
-express a tableau calculus. We define the rule structure of tableau and a node
-in tableau.
+Using the defined notion of CPL in section (\ref{CPL in Coq}), we define
+general data structures to express a tableau calculus. We define the rules of a
+tableau calculus and nodes in tableau as the following.
 %
 \begin{verbatim}
 Inductive Denom :=
@@ -496,10 +517,10 @@ Definition TableauNode := sum PropFSet Denom.
 %
 Where \verb+prod+ defines a product type and \verb+sum+ defines a sum type.
 
-Notably, we define \verb+Rule+ in this context to be the numerator and
-denominator of a tableau rule which only contains the principal formulae. This
-becomes important when we try and generate the applicable of a rule with
-respect to a \verb+PropFSet+.
+Notably, we define \verb+Rule+ in this context to be the respresentation of a
+numerator and denominator of a tableau rule which only contains the principal
+formulae. This becomes important when we try and generate the applicable of a
+rule with respect to a \verb+PropFSet+.
 
 We further explicitly define the derivation tree of a proof in the tableau
 calculus similarly to \cite{dawson2003new}.
@@ -522,11 +543,11 @@ on the set of formula it had, the rule that was applied to it, and the children
 it generates from that set of formula and rule.
 
 It should be noted that \verb+Unf+ does not mean that the node in the tableau
-is open. A tableau of this form is defined as not closed if there exists no
-rule in the tableau calculus which can expand a \verb+Unf+ node. Similarly we
-define a tableau to be closed if there exists a \verb+DerTree+ that is
-generated through correct rule application and where all of its leaves are
-\verb+Clf+.
+cannot be made open. A tableau with a \verb+Unf+ node is defined as opened if
+there exists no rule in the tableau calculus which can expand that \verb+Unf+
+node.  Similarly we define a tableau to be closed if there exists a
+\verb+DerTree+ that is generated through correct rule application and all of
+its leaves are \verb+Clf+.
 
 However, as \verb+DerTree+ was defined recursively as a list of
 \verb+DerTree+s, Coq was unable to automatically define a useful inductive
@@ -546,20 +567,26 @@ Fixpoint DerTree_induction
 \end{verbatim}
 %
 This general induction scheme requires two predicates: one which works on a
-\verb+DerTree+ and one which works on a list of \verb+DerTree+s. Using this,
+\verb+DerTree+ and one which works on a list of \verb+DerTree+s.
+Using this induction scheme, we are able to use the standard sub-tree induction
+and depth induction when completing proofs in Coq.
+%
+\comment{
+Using this,
 we use the general induction scheme to define induction on the \verb+DerTree+
 type as the standard structural induction on a generic rose-tree. That is 
-induction where we prove the proposition holds for leaves as the base case and
-for the inductive step, we assume that the proposition holds for all elements
-of a list of \verb+DerTree+ and prove that it holds for a node with that list
-of \verb+DerTree+s as its children. We also use the other standard induction
-scheme for rose-trees where we for the base case we prove the proposition holds
-for the leaves again, but for the inductive case we assume that the proposition
-is true for all \verb+DerTree+s with a tree depth less than or equal to a list
-of \verb+DerTree+s and prove that it holds for a node with that list of
-\verb+DerTree+s as its children.
+induction where we prove the proposition holds for leaves as the base case, and
+for the inductive step we assume that the proposition holds for all elements
+of a list of \verb+DerTree+s and prove that it holds for a node with that list
+of \verb+DerTree+s as its children.
+We also use this induction scheme to define induction on the depth of a
+rose-tree. For the base case we prove that the proposition holds for the case
+where the \verb+DerTree+ is a leaf node again. For the inductive case we prove
+that the proposition holds for a node when assuming that it hold for all
+\verb+DerTree+s with depth less than it.
+}
 
-We also note we define the depth of a \verb+DerTree+ as one would expect.
+We define the depth of a \verb+DerTree+ as one would expect.
 %
 \begin{verbatim}
 Fixpoint depthDerTree (T : DerTree) :=
@@ -575,23 +602,24 @@ is defined as the usual map function in functional programming languages.
 %
 \section{Tableau-based Theorem Prover}\label{Tableau-based Theorem Prover}
 %
-At each step of determining the satisfiability of a formula using tableau,
-three main considerations need to be made \cite{abate2007tableau,
-kelly2009revised}. We denote any non-closed leaf in a tableau tree to be a goal
-of a tableau tree.
+To determine the satisfiability of a formula using the tableau method, tableau
+rules must be applied to determine if the tableau generated by the formula can
+be made closed.  At each application of a rules, three main considerations need
+to be made \cite{abate2007tableau, kelly2009revised}. We denote any non-closed
+leaf in a tableau tree to be a goal of a tableau tree.
 %
 \begin{itemize}
-\item \textbf{Node-choice:} determining which of goal of the tableau tree to
-apply a rule to.
-\item \textbf{Rule-choice:} determining which rule to apply to the goal.
-\item \textbf{Formula-choice:} determining which formula in the goal to apply
-the rule to.
+\item \textbf{Node-choice:} determining which goal of a tableau to apply a rule
+to.
+\item \textbf{Rule-choice:} determining which rule to apply a goal.
+\item \textbf{Formula-choice:} determining which formula in a goal to apply
+a rule to.
 \end{itemize}
 %
 Similarly, we create functions in Coq to allow the user to make each of these
 decisions. We note that any node in a \verb+DerTree+ which is of the type
 \verb+Unf+ is a goal of the \verb+DerTree+. To define the functions to allow
-the user to make these choices, we first define how to generate applicable
+the user to make these choices, we define how to generate applicable
 partitions, how to apply a rule to a tableau node, and how to traverse a
 \verb+DerTree+ to make the choices in Coq.
 %
@@ -608,7 +636,7 @@ Definition Partition := list (PropF * PropF).
 %
 Given a \verb+Partition+ $\pi$, the associated partition map is the map defined
 by each element of $\pi$. If $(a, \, b)$ is an element of $\pi$, then in the
-map of $\pi$, $a \mapsto b$. Given this partial function defined in this way,
+map of $\pi$, $a$ maps to $b$. Given the partial function defined in this way,
 if a \verb+PropF+ formula is not in the domain of the function, it is mapped to
 itself to give us a total function. For a \verb+Partition+ $\pi$ we denote the 
 partial function generated by $\pi$ as $\mathcal{F}^{P}_{\pi}$ and the total
@@ -631,7 +659,7 @@ if $\textrm{Image}(\mathcal{F}^{P}_{\pi_1}) \cap
 \textrm{Domain}(\mathcal{F}^{P}_{\pi_2}) = \emptyset$ and
 $\textrm{Domain}(\mathcal{F}^{P}_{\pi_1}) \cap
 \textrm{Domain}(\mathcal{F}^{P}_{\pi_2}) = \emptyset$. This is equivalent to
-the notion of repeatedly adding elements to a well-formed partition.
+the notion of repeatedly adding elements to form a well-formed partition.
 
 We define a function \verb+extendPartition+ in Coq to define well-formed
 partition extension.
@@ -643,22 +671,23 @@ Fixpoint extendPartition (p1 p2 : Partition) : option Partition.
 The function returns \verb+None+ if the extension results in a non-well-formed
 partition, otherwise it returns the well-formed extension.
 
-We also define \verb+partition_help+ in Coq.
+We define \verb+partition_help+ in Coq,
 %
 \begin{verbatim}
 Fixpoint partition_help (scheme : PropF) (propset : PropFSet)
   (pi : Partition) : list (Partition).
 \end{verbatim}
 %
-The function generates all applicable partition tuples of a formula
-\verb+scheme+ with respect to a set of formulae \verb+propset+ and then
-attempts to form a well-formed extension of the partition \verb+pi+. Only the
-well-formed are returned. That is, if all none of the applicable partitions
-extend \verb+pi+ in a well-formed way the function returns an empty list.
+\verb+partition_help+ generates all applicable partition tuples of a formula
+\verb+scheme+ with respect to a set of formulae \verb+propset+.
+The function then returns all well-formed extensions of \verb+pi+ with respect
+to each applicable partition tuple generated to form a list.
+If all the applicable partitions are unable to extend \verb+pi+ to give a
+well-formed partition, the function returns an empty list.
 
-Now with \verb+partition_help+ we can iteratively define a process to generate
-all applicable partition tuples of a set of formulae with respect to another
-set of formulae. This will be used to find the applicable partitions of a
+With \verb+partition_help+ we iteratively define a process to generate all
+applicable partition tuples of a set of formulae with respect to another set of
+formulae. \verb+getPartitions+ is used to find the applicable partitions of a
 numerator of a rule with respect to a node of the tableau tree.
 %
 \begin{verbatim}
@@ -679,21 +708,22 @@ Where \verb+flat_map+ is provided by Coq.
 %
 \subsection{Tableau Rule Application}
 %
-Given a \verb+Rule+ and a \verb+Partition+ we define a function which will
-expand a node in a \verb+DerTree+ with respect to a \verb+PropFSet+.
+Given a \verb+Rule+ and a \verb+Partition+ we define a function which
+creates a \verb+DerTree+ inner node with respect to a \verb+PropFSet+.
 
-We first define \verb+applyPartition+, a function which evaluates the map
-defined by a partition on a set of formulae.
+We first define \verb+applyPartition+, which evaluates the map defined by a
+partition on a set of formulae.
 %
 \begin{verbatim}
 Fixpoint applyPartition (propset : PropFSet) (pi : Partition).
 \end{verbatim}
 %
 This is simply the element-wise evaluation of $\mathcal{F}_{\verb+pi+}^{T}$ on
-\verb+propset+. We similarly \verb+denoApply+ which just takes into account the
-case in which the denominator of a rule is a terminating symbol.
-
-We also define the notion of set minus, \verb+removeMultSet+.
+a \verb+propset+. We similarly define \verb+denoApply+ which additionally takes
+into account the case in which the denominator of a rule is a terminating
+symbol. In this case, \verb+denoApply+ returns a terminating symbol.
+\comment{
+We also define the notion of set subtraction in Coq, \verb+removeMultSet+.
 %
 \begin{verbatim}
 Fixpoint removeMultSet (remove setprop : PropFSet) : PropFSet.
@@ -701,6 +731,7 @@ Fixpoint removeMultSet (remove setprop : PropFSet) : PropFSet.
 %
 This function simply returns a \verb+PropFSet+ which is the set \verb+setprop+
 subtracted by the set \verb+remove+.
+}
 
 Additionally we define the following function.
 %
@@ -711,13 +742,15 @@ Fixpoint derTreeAppend (rule : Rule) (propset : PropFSet)
 \end{verbatim}
 %
 \verb+derTreeAppend+ defines a inner node with \verb+rule+ and set
-\verb+propset+ with the children generated by \verb+branches+ with respect to
-the accumulator.
+\verb+propset+ with the children generated by \verb+branches+ (with an
+accumulator to turn \verb+TableauNode+s into \verb+DerTree+s).
 
-Thus with these functions we define \verb+applyPartitionRuleD+ to generate a
-\verb+DerTree+ inner node which is a results of a tableau rule being applied to
-a set of propositional formulae given a partition.
+With these functions, we define \verb+applyPartitionRuleD+ which makes a
+\verb+DerTree+ inner node which is the result of a tableau rule being applied
+to a \verb+PropFSet+ (where the formula-choice of the rule application is
+defined by a given partition).
 %
+\comment{
 \begin{verbatim}
 Definition applyPartitionRuleD (rule : Rule) (propset : PropFSet)
   (pi : Partition) : option DerTree :=
@@ -732,17 +765,22 @@ Definition applyPartitionRuleD (rule : Rule) (propset : PropFSet)
            end
     end.
 \end{verbatim}
+}
+\begin{verbatim}
+Definition applyPartitionRuleD (rule : Rule) (propset : PropFSet)
+  (pi : Partition) : option DerTree.
+\end{verbatim}
 %
 The function assumes that the argument \verb+pi+ is a partition which will
 correctly allow the set of formulae \verb+propset+ be applied to tableau rule
 \verb+rule+. The choice of partition \verb+pi+ determines the formula-choice
 when the rule is applied to the propset. Assuming that the arguments allow for
-valid rule application, If the applied rule's denominator is a terminating
-symbol \verb+applyPartitionRuleD+ returns a \verb+Clf+ node. Otherwise, the
-function will return a \verb+Der+ node with \verb+propset+, \verb+rule+ and
-a list of \verb+Unf+ nodes which are the resulting tableau branches from
-\verb+rule+ being applied to \verb+propset+ with the formula-choice being
-decided by \verb+pi+.
+valid rule application, if the denominator of \verb+rule+ is a terminating
+symbol, \verb+applyPartitionRuleD+ returns a \verb+Clf+ node. Otherwise, the
+function will return a \verb+Der+ node with \verb+propset+, \verb+rule+ and a
+list of children \verb+Unf+ nodes. The children nodes are the result of
+\verb+rule+ being applied to \verb+propset+ (with the formula-choice being
+decided by \verb+pi+).
 %
 \subsection{Traversing DerTree}
 %
@@ -754,8 +792,9 @@ To expand a tableau through rule application, we must traverse the
 Fixpoint getGoals (T : DerTree) : list DerTree.
 \end{verbatim}
 %
-We define a function which will identify which branch in a list of branches has
-the $n^{\textrm{th}}$ goal.
+We define a function which will identify which branch in a list of branches
+(which is in order from left-to-right in a tableau) has the $n^{\textrm{th}}$
+goal.
 %
 \begin{verbatim}
 Definition traverseToNG (Ts : list DerTree) (n : nat) :
@@ -769,16 +808,13 @@ which contains the $n^{\textrm{th}}$ goal, and the updated number of the goal
 with respect to the branch containing the goal.
 
 We define a function which applies a function of type
-\verb+DerTree -> DerTree+ to the $n^{\textrm{th}}$ node of a \verb+DerTree+.
+\verb+DerTree -> DerTree+ to the $n^{\textrm{th}}$ goal of a \verb+DerTree+.
 %
 \begin{verbatim}
 Definition toBranchNG (T : DerTree) :
   (DerTree -> DerTree) -> nat -> DerTree.
 \end{verbatim}
 %
-The function is defined using well-founded induction using the depth order
-relation (\ref{depthOrder}).
-
 We also define a function to find the $n^{\textrm{th}}$ goal in a
 \verb+DerTree+.
 %
@@ -786,9 +822,10 @@ We also define a function to find the $n^{\textrm{th}}$ goal in a
 Definition getNGoal (T : DerTree) : nat -> option DerTree.
 \end{verbatim}
 %
-\verb+DerTree+ also had to defined using well-founded induction using the
-depth order relation (\ref{depthOrder}).
+Both \verb+toBranchNG+ and \verb+getNGoal+ was defined using well-founded
+induction using the depth order relation (\ref{depthOrder}).
 
+\comment{
 Additionally we define a map function for option types.
 %
 \begin{verbatim}
@@ -797,8 +834,9 @@ Definition optionSucMap (A B : Type) (f : A -> option B)
 \end{verbatim}
 %
 \verb+optionSucMap+ applies \verb+f+ to each element in \verb+xs+. For each of
-the results which do not return \verb+None+ has its values appended into list.
-If the final list is empty, \verb+None+ is returned.
+the results which do not return \verb+None+, the result is appended to a list
+which is the return value of the function.  If the final list is empty,
+\verb+None+ is returned.
 
 We also define the following simple function which returns a function which
 returns a \verb+DerTree+.
@@ -808,9 +846,14 @@ Definition updateLeaf (T : DerTree) :
   (DerTree -> DerTree) := fun _ => T.
 \end{verbatim}
 %
+}
 We define the function to apply a rule to the $n^{\textrm{th}}$ goal of a
 \verb+DerTree+.
 %
+\begin{verbatim}
+Definition applyRtoNG (T : DerTree) (rule : Rule) (n : nat).
+\end{verbatim}
+\comment{
 \begin{verbatim}
 Definition applyRtoNG (T : DerTree) (rule : Rule) (n : nat) :=
   match getNGoal T n with
@@ -832,24 +875,27 @@ Definition applyRtoNG (T : DerTree) (rule : Rule) (n : nat) :=
       end
   end.
 \end{verbatim}
+}
 %
 \verb+applyRtoNG+ generates all possible ways a \verb+Rule+ can be applied to
 the $n^{\textrm{th}}$ goal of a \verb+DerTree+. The function gets the
-$n^{\textrm{th}}$ goal of the \verb+DerTree+ \verb+T+. It then generates all
-possible applicable partitions of the \verb+Rule+ \verb+rule+ with respect to
-the set of formulae \verb+propset+ with \verb+getPartitions+.
-\verb+applyPartitionRuleD+ is then used to generate a new node which is the
-$n^{\textrm{th}}$ goal applied with the  tableau rule \verb+rule+ with respect
-to each partition generated by \verb+getPartitions+. Each of the new nodes
-then replace $n^{\textrm{th}}$ goal.
+$n^{\textrm{th}}$ goal of the \verb+DerTree+ \verb+T+ using \verb+getNGoal+. It
+then generates all possible applicable partitions of the \verb+Rule+
+\verb+rule+ with respect to the set of formulae \verb+propset+ with
+\verb+getPartitions+.  \verb+applyPartitionRuleD+ is then used to generate new
+nodes which are the $n^{\textrm{th}}$ goal applied with the tableau rule
+\verb+rule+ (with respect to the formula-choice chosen by each partition
+generated by \verb+getPartitions+). The function then returns a list of the
+\verb+DerTree+ T with the goal node replaced by each of the new nodes
+generated.
 
 The function allows the user to make a rule-choice and a node-choice when
 applying a rule to the tableau. The remaining choice to be made is the
 formula-choice when applying a rule. \verb+applyRtoNG+ returns a list of all
-possible applications of the chosen rule on the $n^{\textrm{th}}$ goal of the
-tableau. Thus to account for a formula-choice, we just pick from the returning
-list of \verb+applyRtoNG+. We define the following function to select from a
-list of results.
+possible applications of a rule on the $n^{\textrm{th}}$ goal of a tableau.
+Thus to account for a formula-choice, we just pick from the returning list of
+\verb+applyRtoNG+. We define the following function to select from a list of
+results.
 %
 \begin{verbatim}
 Fixpoint pickNFApply (results : option (list DerTree)) (n : nat)
@@ -858,8 +904,9 @@ Fixpoint pickNFApply (results : option (list DerTree)) (n : nat)
 %
 \subsection{CPL Example}
 %
-We demonstrate how $applyRtoNG$ and $pickNFApply$ can be used to prove the
-validity of formulae in CPL by proving that the following formula is valid.
+We demonstrate how \verb+applyRtoNG+ and \verb+pickNFApply+ can be used to
+prove the validity of formulae in CPL by proving that the following formula is
+valid.
 %
 \begin{equation}
 (A \wedge (A \implies B)) \implies B
@@ -867,8 +914,8 @@ validity of formulae in CPL by proving that the following formula is valid.
 \end{equation}
 %
 We convert the tableau rules for CPL detailed in section (\ref{Tableau for
-CPL}) to the $Rule$ type in Coq, only including the principal formulae of each
-tableau rule. We alias each of the rules as the following in Coq.
+CPL}) to the \verb+Rule+ type in Coq, only including the principal formulae of
+each tableau rule. We alias each of the rules as the following in Coq.
 %
 \begin{verbatim}
 Inductive CRule := 
@@ -878,14 +925,15 @@ Inductive CRule :=
   | AndC : CRule.
 \end{verbatim}
 %
-With function \verb+getCRule+ of type \verb+CRule -> Rule+ which returns the
-$Rule$ tuple associated to each of the tableau rules aliased by the inductive
-type $CRule$. We define \verb+applyCRtoNG+ to be a specific implementation of
-\verb+applyRtoNG+ for \verb+CRule+. To determine the validity of (\ref{cpl
-example formula}), we look at the formula's negation. The negation of (\ref{cpl
-example formula}) is converted into negation normal form such that the rules
-defined are applicable.  The procedure to convert the negation of (\ref{cpl
-example formula}) is defined in definition (\ref{NNF for CPL}).
+We define the function \verb+getCRule+ of type \verb+CRule -> Rule+. This
+function returns the \verb+Rule+ tuple associated to each of the tableau rules
+aliased by the inductive type \verb+CRule+. We define \verb+applyCRtoNG+ to be
+a specific implementation of \verb+applyRtoNG+ for \verb+CRule+. To determine
+the validity of (\ref{cpl example formula}), we look at the formula's negation.
+The negation of (\ref{cpl example formula}) is converted into negation normal
+form such that the tableau calculus defined can be used to check the
+satisfiability of the formula. The procedure to convert the negation of
+(\ref{cpl example formula}) is defined in definition (\ref{NNF for CPL}).
 %
 \begin{equation}
 A \wedge ((\neg A \vee B) \wedge \neg B)
@@ -913,7 +961,8 @@ leaves of the tableau tree which are not closed.
 By running \verb+Compute getGoals step6.+ we get \verb+= nil : list DerTree+ as
 the output showing that the tableau is closed. Thus it follows that as the
 negation of (\ref{cpl example formula}) results in a closed tableau, it is 
-unsatisfiable. Thus it follows that (\ref{cpl example formula}) is a theorem.
+unsatisfiable. Thus as expected (\ref{cpl example formula}) is shown to be a
+theorem.
 %
 \section{Future Work}
 %
@@ -925,47 +974,52 @@ additional logics.
 
 To extend the framework for automation, we need to consider the node-choice,
 rule-choice and formula-choice as defined in section (\ref{Tableau-based
-Theorem Prover}). We can follow methods used by the Tableau Workbench
+Theorem Prover}). We can follow methods used by the Tableau Work Bench
 \cite{abate2007tableau} to make decisions about these choices.  Node-choice can
 be handled by a depth-first search, in the tableau when a rule is applied, the
-left most branch is searched first.  Formula-choice is only important if the
-rules are invertible. If a rule is not invertible \ref{Invertible Rule}, a
-backtracking approach may need to be used. We will further discuss the use of
-backtracking in the next section. To determine the rule-choice, the Tableau
-Workbench requires users to input a strategy. This directs the proof search of
-the Tableau Workbench, guiding which strategy should be applied at a particular
-step. That is, in the Tableau Workbench the user gives the system a strategy in
-which rules will be evaluated to expand a tableau. An additional requirement of
-implementing automation in this tableau-based theorem proof synthesiser in Coq
-would be to ensure that the proof search method terminates. Thus for the
-implementation in Coq, for each strategy a user provides, the expansion of any
-tableau in the logic using the rule-choice strategy must either be proven by
-the framework or by the user. In general, proving that a strategy is
-terminating automatically can be difficult. The process requires defining a
-well-founded relation in which the proof search function decrements at each
-recursive call, section \ref{Defining Functions}.
+left most branch is searched first. Formula-choice is only important if the
+rules are invertible. If a rule is not invertible (definition (\ref{Invertible
+Rule})), a backtracking approach to rule application is needed. We further
+discuss the use of backtracking below when dealing with additional logics. To
+determine the rule-choice, the Tableau Work Bench requires users to input a
+strategy. This directs the proof search of the Tableau Work Bench, guiding
+which rule should be applied at a particular step in a tableau proof. That is,
+in the Tableau Work Bench the user gives the system a strategy in which rules
+will be evaluated to expand a tableau. An additional requirement of
+implementing automation in this framework would be to ensure that the proof
+search method terminates. Thus for the implementation in Coq, for each strategy
+a user provides, the proof search process of the tableau specified by the
+strategy must be proven to terminate by either the framework or the user. In
+general, proving that a strategy is terminating automatically cannot be
+automated. The process requires defining a well-founded relation in which the
+proof search function decrements at each recursive call, section (\ref{Defining
+Functions}).
 
 To extend the framework for logics other than CPL, we must deal with rules
 which are not invertible. As mentioned above, formula-choice needs to be
-considered when rules are not invertible. If the application of a rule will
-lead to a closed tableau, the choice of formula in which the rule is applied to
-does not matter and will similarly lead to a closed tableau (eventually).
-However, in the case in which a tableau rule is not invertible, an incorrect
-selection of formulae in which the rule is applied to can cause the branch of
-the tableau to be impossible to closed through additional application of rules.
-Thus, to ensure that a branch is truly unable to be shown to be closed, all
-combinations of formula-choice for a non-invertible rule must be tested. This
-can be done through backtracking. Whenever, a non-invertible rule results in a
-branch where no additional rules can be applied, the tableau backtracks to that
-non-invertible rule and a different formula-choice is made until it either
-gives a closed branch, or there are no more formula-choices to be made,
-confirming that the branch is indeed opened.
+considered when rules are not invertible. If the application of an invertible
+rule leads to a closed tableau, the choice of formula in which the rule is
+applied to does not matter. However, in the case in which a tableau rule is not
+invertible, an incorrect selection of formulae in the application of a rule can
+cause a branch of the tableau to be impossible to close, even if there exists a
+combination of rule application which can make the branch closed. Thus, to
+ensure that a branch is truly unable to be closed, all combinations of
+formula-choice for a non-invertible rule must be tested. This can be done
+through backtracking. Whenever, a non-invertible rule results in an unclosed
+branch where no additional rules can be applied, the tableau backtracks. The
+tableau goes back to the state of the non-invertible rule and a different
+formula-choice is made until it either gives a closed branch, or there are no
+more formula-choices to be made, confirming that the branch is indeed opened.
 %
 \section{Conclusion}
 %
-In this paper we present the first steps in implementing a framework which
-allows to users to synthesise tableau-based theorem provers for various logics.
-We demonstrate how the framework can used to prove 
+In this paper we describe the first steps in implementing a framework which
+allows users to synthesise tableau-based theorem provers for various logics.
+We outline the differences which need to be considered when implementing the
+framework in Coq instead of typical programming languages.  Specifically, we
+demonstrate how the framework can be used to make a tableau-based theorem
+prover for classical propositional logic and how it can be used to prove that a
+formula is a theorem in classical propositional logic.
 %
 \bibliography{reference}
 \bibliographystyle{splncs}
